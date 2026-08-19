@@ -1,0 +1,1318 @@
+/* ==========================================================
+                        RESET
+========================================================== */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+
+    font-family:'Poppins',sans-serif;
+
+    background:#F5F7FC;
+
+    color:#222;
+
+    overflow-x:hidden;
+    overflow-y:auto;
+
+}
+
+a{
+
+    text-decoration:none;
+
+    color:inherit;
+
+}
+
+img{
+
+    display:block;
+
+    max-width:100%;
+
+}
+
+/* ==========================================================
+                    AUTH PAGE
+========================================================== */
+
+.login-page{
+
+    width:100%;
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    padding:40px;
+
+    background:
+    linear-gradient(
+        135deg,
+        #F5F7FC 0%,
+        #FFFFFF 100%
+    );
+
+}
+
+/* ==========================================================
+                    MAIN CONTAINER
+========================================================== */
+
+.login-container{
+
+    width:100%;
+
+    max-width:1450px;
+
+    min-height:820px;
+
+    display:grid;
+
+    grid-template-columns:48% 52%;
+
+    background:#FFFFFF;
+
+    border-radius:28px;
+
+    overflow:hidden;
+
+    box-shadow:
+    0 30px 80px rgba(15,23,42,.08);
+
+}
+
+/* ==========================================================
+                    LEFT SIDE
+========================================================== */
+
+.login-left{
+
+    padding:65px 70px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:center;
+
+}
+
+/* ==========================================================
+                    CONTENT
+========================================================== */
+
+.login-content{
+
+    width:100%;
+
+    max-width:480px;
+
+}
+
+/* ==========================================================
+                    RIGHT SIDE
+========================================================== */
+
+.login-right{
+
+    position:relative;
+
+    min-height:820px;
+
+    overflow:hidden;
+
+    background:#E5E7EB;
+
+}
+
+/* ==========================================================
+                    BACK BUTTON
+========================================================== */
+
+.back-home{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    width:max-content;
+
+    margin-bottom:35px;
+
+    color:#6C3EF4;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    transition:.30s ease;
+
+}
+
+.back-home:hover{
+
+    transform:translateX(-5px);
+
+}
+
+/* ==========================================================
+                    LOGIN TAG
+========================================================== */
+
+.login-tag{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    width:max-content;
+
+    padding:10px 18px;
+
+    margin-bottom:28px;
+
+    border-radius:999px;
+
+    background:#F3EEFF;
+
+    color:#6C3EF4;
+
+    font-size:14px;
+
+    font-weight:600;
+
+}
+
+/* ==========================================================
+                    TITLE
+========================================================== */
+
+.login-content h1{
+
+    font-size:58px;
+
+    font-weight:700;
+
+    line-height:1.15;
+
+    color:#1F2937;
+
+    margin-bottom:18px;
+
+}
+
+.login-content h1 span{
+
+    color:#6C3EF4;
+
+}
+
+.login-content p{
+
+    font-size:16px;
+
+    line-height:1.8;
+
+    color:#6B7280;
+
+    margin-bottom:42px;
+
+}
+
+/* ==========================================================
+                    FORM
+========================================================== */
+
+form{
+
+    width:100%;
+
+}
+
+.input-box{
+
+    margin-bottom:24px;
+
+}
+
+.input-box label{
+
+    display:block;
+
+    margin-bottom:10px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    color:#374151;
+
+}
+
+/* ==========================================================
+                    INPUT FIELD
+========================================================== */
+
+.input-field{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+    height:60px;
+
+    padding:0 20px;
+
+    border:2px solid #E5E7EB;
+
+    border-radius:16px;
+
+    background:#FFFFFF;
+
+    transition:.30s ease;
+
+}
+
+.input-field:hover{
+
+    border-color:#D7CCFF;
+
+}
+
+.input-field:focus-within{
+
+    border-color:#6C3EF4;
+
+    box-shadow:0 0 0 4px rgba(108,62,244,.12);
+
+}
+
+.input-field i{
+
+    color:#9CA3AF;
+
+    font-size:18px;
+
+    flex-shrink:0;
+
+}
+
+.input-field input{
+
+    flex:1;
+
+    border:none;
+
+    outline:none;
+
+    background:transparent;
+
+    font-size:15px;
+
+    font-family:'Poppins',sans-serif;
+
+    color:#111827;
+
+}
+
+.input-field input::placeholder{
+
+    color:#B6BBC5;
+
+}
+
+/* ==========================================================
+                    PASSWORD ICON
+========================================================== */
+
+.eye-icon{
+
+    cursor:pointer;
+
+    transition:.30s;
+
+}
+
+.eye-icon:hover{
+
+    color:#6C3EF4;
+
+}
+
+/* ==========================================================
+                    LOGIN OPTION
+========================================================== */
+
+.login-option{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin:8px 0 34px;
+
+    font-size:14px;
+
+}
+
+.login-option label{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    color:#6B7280;
+
+    cursor:pointer;
+
+}
+
+.login-option input{
+
+    accent-color:#6C3EF4;
+
+}
+
+.login-option a{
+
+    color:#6C3EF4;
+
+    font-weight:600;
+
+}
+
+.login-option a:hover{
+
+    text-decoration:underline;
+
+}
+
+/* ==========================================================
+                    BUTTON
+========================================================== */
+
+.login-btn{
+
+    width:100%;
+
+    height:60px;
+
+    border:none;
+
+    border-radius:16px;
+
+    background:#6C3EF4;
+
+    color:#FFFFFF;
+
+    font-size:16px;
+
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:.35s ease;
+
+}
+
+.login-btn:hover{
+
+    background:#5A30E5;
+
+    transform:translateY(-2px);
+
+    box-shadow:0 15px 35px rgba(108,62,244,.28);
+
+}
+
+/* ==========================================================
+                    REGISTER LINK
+========================================================== */
+
+.register-link{
+
+    margin-top:32px;
+
+    text-align:center;
+
+    color:#6B7280;
+
+    font-size:15px;
+
+}
+
+.register-link a{
+
+    margin-left:6px;
+
+    color:#6C3EF4;
+
+    font-weight:700;
+
+}
+
+.register-link a:hover{
+
+    text-decoration:underline;
+
+}
+
+/* ==========================================================
+                    HERO IMAGE
+========================================================== */
+
+.login-right{
+
+    position:relative;
+
+    min-height:820px;
+
+    overflow:hidden;
+
+    display:flex;
+
+    align-items:stretch;
+
+    justify-content:center;
+
+    background:#F3F4F6;
+
+}
+
+.login-right img{
+
+    width:100%;
+
+    height:100%;
+
+    object-fit:cover;
+
+    object-position:center;
+
+    transition:transform .8s ease;
+
+}
+
+.login-right:hover img{
+
+    transform:scale(1.05);
+
+}
+
+/* ==========================================================
+                    OVERLAY
+========================================================== */
+
+.overlay{
+
+    position:absolute;
+
+    inset:0;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:flex-end;
+
+    padding:60px;
+
+    background:linear-gradient(
+        to top,
+        rgba(0,0,0,.68),
+        rgba(0,0,0,.10)
+    );
+
+    color:#FFFFFF;
+
+}
+
+.overlay h2{
+
+    font-size:42px;
+
+    font-weight:700;
+
+    line-height:1.2;
+
+    margin-bottom:15px;
+
+}
+
+.overlay p{
+
+    max-width:420px;
+
+    font-size:16px;
+
+    line-height:1.8;
+
+    color:rgba(255,255,255,.92);
+
+}
+
+/* ==========================================================
+                    ANIMATION
+========================================================== */
+
+.login-left{
+
+    animation:fadeLeft .8s ease;
+
+}
+
+.login-right{
+
+    animation:fadeRight 1s ease;
+
+}
+
+@keyframes fadeLeft{
+
+    from{
+
+        opacity:0;
+
+        transform:translateX(-45px);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:translateX(0);
+
+    }
+
+}
+
+@keyframes fadeRight{
+
+    from{
+
+        opacity:0;
+
+        transform:translateX(45px);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:translateX(0);
+
+    }
+
+}
+
+/* ==========================================================
+                SMALL INTERACTION
+========================================================== */
+
+.login-container{
+
+    transition:.35s ease;
+
+}
+
+.login-container:hover{
+
+    box-shadow:
+    0 35px 90px rgba(15,23,42,.12);
+
+}
+
+.input-field,
+.login-btn,
+.back-home{
+
+    transition:all .30s ease;
+
+}
+
+.login-tag{
+
+    animation:fadeUp .8s ease;
+
+}
+
+@keyframes fadeUp{
+
+    from{
+
+        opacity:0;
+
+        transform:translateY(20px);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:translateY(0);
+
+    }
+
+}
+
+/* ==========================================================
+                    RESPONSIVE
+========================================================== */
+
+@media (max-width:1400px){
+
+    .login-container{
+
+        max-width:1280px;
+
+    }
+
+}
+
+@media (max-width:1200px){
+
+    .login-container{
+
+        grid-template-columns:1fr;
+
+        max-width:720px;
+
+        min-height:auto;
+
+    }
+
+    .login-right{
+
+        display:none;
+
+    }
+
+    .login-left{
+
+        padding:55px;
+
+    }
+
+    .login-content{
+
+        max-width:100%;
+
+    }
+
+}
+
+@media (max-width:768px){
+
+    .login-page{
+
+        padding:20px;
+
+    }
+
+    .login-left{
+
+        padding:35px 25px;
+
+    }
+
+    .login-content h1{
+
+        font-size:42px;
+
+    }
+
+    .login-tag{
+
+        font-size:13px;
+
+    }
+
+    .back-home{
+
+        margin-bottom:25px;
+
+    }
+
+    .input-field{
+
+        height:56px;
+
+    }
+
+    .login-btn{
+
+        height:56px;
+
+    }
+
+}
+
+@media (max-width:480px){
+
+    .login-content h1{
+
+        font-size:34px;
+
+    }
+
+}
+
+/* ==========================================================
+                REGISTER PAGE SUPPORT
+========================================================== */
+
+.login-page{
+
+    overflow-y:auto;
+
+}
+
+.login-container{
+
+    height:auto;
+
+    min-height:820px;
+
+}
+
+/* ==========================================================
+                REGISTER SCROLL FIX
+========================================================== */
+
+body.register-body{
+
+    overflow-y:auto;
+
+}
+
+body.register-body .login-page{
+
+    align-items:flex-start;
+
+    padding-top:40px;
+
+    padding-bottom:40px;
+
+}
+
+body.register-body .login-container{
+
+    min-height:auto;
+
+}
+
+/* ==========================================================
+                    FINAL POLISH
+========================================================== */
+
+::selection{
+
+    background:#6C3EF4;
+
+    color:#FFFFFF;
+
+}
+
+/* ==========================================================
+            MOBILE RESPONSIVE FINAL POLISH
+            KHUSUS HP - DESKTOP TIDAK BERUBAH
+========================================================== */
+
+@media (max-width: 480px) {
+
+    .login-page {
+        width: 100%;
+        min-height: 100vh;
+        padding: 12px;
+        align-items: flex-start;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 100%;
+        min-height: auto;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .login-left {
+        width: 100%;
+        padding: 28px 20px 32px;
+    }
+
+    .login-content {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .back-home {
+        margin-bottom: 20px;
+        font-size: 13px;
+    }
+
+    .login-tag {
+        padding: 8px 14px;
+        margin-bottom: 20px;
+        font-size: 12px;
+    }
+
+    .login-content h1 {
+        width: 100%;
+        max-width: 100%;
+        font-size: 29px;
+        line-height: 1.2;
+        margin-bottom: 14px;
+        overflow-wrap: break-word;
+    }
+
+    .login-content p {
+        width: 100%;
+        font-size: 13px;
+        line-height: 1.65;
+        margin-bottom: 28px;
+    }
+
+    .input-box {
+        width: 100%;
+        margin-bottom: 18px;
+    }
+
+    .input-box label {
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+
+    .input-field {
+        width: 100%;
+        height: 52px;
+        padding: 0 15px;
+        gap: 12px;
+        border-radius: 13px;
+    }
+
+    .input-field i {
+        font-size: 16px;
+    }
+
+    .input-field input {
+        min-width: 0;
+        width: 100%;
+        font-size: 13px;
+    }
+
+    .login-option {
+        width: 100%;
+        margin: 5px 0 24px;
+        gap: 10px;
+        font-size: 12px;
+    }
+
+    .login-option label {
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .login-option a {
+        white-space: nowrap;
+    }
+
+    .login-btn {
+        width: 100%;
+        height: 52px;
+        border-radius: 13px;
+        font-size: 14px;
+    }
+
+    .register-link {
+        margin-top: 24px;
+        font-size: 13px;
+    }
+
+}
+
+
+/* ==========================================================
+            VERY SMALL PHONE
+========================================================== */
+
+@media (max-width: 360px) {
+
+    .login-page {
+        padding: 8px;
+    }
+
+    .login-left {
+        padding: 24px 16px 28px;
+    }
+
+    .login-content h1 {
+        font-size: 26px;
+    }
+
+    .login-content p {
+        font-size: 12px;
+    }
+
+    .login-option {
+        font-size: 11px;
+    }
+
+    .login-btn {
+        height: 50px;
+    }
+
+}
+
+/* =========================================================
+   REGISTER MOBILE FINAL FIX
+   Hanya untuk Register di HP
+   Desktop tidak berubah
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    body.register-body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    body.register-body .register-page {
+        width: 100%;
+        max-width: 100%;
+
+        padding: 20px 14px 30px;
+
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body.register-body .login-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        margin: 0;
+
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    body.register-body .login-left {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        padding: 30px 22px;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .login-right {
+        display: none;
+    }
+
+    body.register-body .login-content {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .login-content h1 {
+        width: 100%;
+        max-width: 100%;
+
+        font-size: 38px;
+        line-height: 1.2;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .login-content p {
+        width: 100%;
+        max-width: 100%;
+
+        font-size: 14px;
+        line-height: 1.7;
+
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+    }
+
+    /* ================= REGISTER FORM ================= */
+
+    body.register-body form {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .input-box {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .input-box label {
+        display: block;
+
+        width: 100%;
+        max-width: 100%;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .input-field {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .input-field input {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .login-option {
+        width: 100%;
+        max-width: 100%;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .login-btn {
+        width: 100%;
+        max-width: 100%;
+
+        box-sizing: border-box;
+    }
+
+    body.register-body .register-link {
+        width: 100%;
+        max-width: 100%;
+
+        box-sizing: border-box;
+        text-align: center;
+    }
+}
+
+
+/* =========================================================
+   REGISTER EXTRA SMALL PHONE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+    body.register-body .register-page {
+        padding: 14px 10px 25px;
+    }
+
+    body.register-body .login-left {
+        padding: 26px 18px;
+    }
+
+    body.register-body .login-content h1 {
+        font-size: 32px;
+    }
+
+    body.register-body .login-content p {
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    body.register-body .input-field {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    body.register-body .input-field input {
+        width: 100%;
+        max-width: 100%;
+    }
+
+}
+
+/* =========================================================
+   REGISTER MOBILE - FINAL SIMPLE FIX
+   KHUSUS HP
+   DESKTOP TIDAK DIUBAH
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    body.register-body {
+        width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+
+    body.register-body .register-page {
+        width: 100%;
+        min-width: 0;
+        padding: 15px;
+        overflow-x: hidden;
+    }
+
+    body.register-body .login-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        display: block;
+        overflow: hidden;
+        border-radius: 20px;
+    }
+
+    body.register-body .login-left {
+        width: 100%;
+        min-width: 0;
+        padding: 30px 20px;
+    }
+
+    body.register-body .login-content {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.register-body .login-content h1 {
+        width: 100%;
+        max-width: 100%;
+        font-size: 32px;
+        line-height: 1.2;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+
+    body.register-body .login-content p {
+        width: 100%;
+        max-width: 100%;
+        font-size: 13px;
+        line-height: 1.7;
+        overflow-wrap: anywhere;
+    }
+
+    body.register-body form {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.register-body .input-box {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.register-body .input-field {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 52px;
+        padding: 0 14px;
+        box-sizing: border-box;
+    }
+
+    body.register-body .input-field input {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    body.register-body .login-option {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        font-size: 12px;
+    }
+
+    body.register-body .login-btn {
+        width: 100%;
+        max-width: 100%;
+        height: 52px;
+    }
+
+    body.register-body .register-link {
+        width: 100%;
+        max-width: 100%;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    body.register-body .login-right {
+        display: none;
+    }
+}
+
+
+/* =========================================================
+   REGISTER MOBILE - SMALL PHONE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+    body.register-body .register-page {
+        padding: 10px;
+    }
+
+    body.register-body .login-left {
+        padding: 26px 18px 30px;
+    }
+
+    body.register-body .login-content h1 {
+        font-size: 30px;
+    }
+
+    body.register-body .login-content p {
+        font-size: 13px;
+    }
+
+    body.register-body .input-box label {
+        font-size: 13px;
+    }
+
+    body.register-body .input-field {
+        height: 52px;
+    }
+
+}
