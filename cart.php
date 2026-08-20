@@ -1,8 +1,17 @@
 <?php
-
 session_start();
 
 include "config/database.php";
+
+/*
+|--------------------------------------------------------------------------
+| Ambil Data Cart
+|--------------------------------------------------------------------------
+*/
+
+$cart = $_SESSION['cart'] ?? [];
+
+$total = 0;
 
 ?>
 
@@ -17,7 +26,7 @@ include "config/database.php";
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>BookVerse</title>
+    <title>Shopping Cart - BookVerse</title>
 
     <!-- Google Font -->
 
@@ -27,7 +36,7 @@ include "config/database.php";
 
     <link
         rel="preconnect"
-        href="https://fonts.googleapis.com"
+        href="https://fonts.gstatic.com"
         crossorigin>
 
     <link
@@ -50,22 +59,6 @@ include "config/database.php";
 
 <body>
 
-    <!-- ================= CART SUCCESS TOAST ================= -->
-
-    <?php if (isset($_GET['added']) && $_GET['added'] === 'success'): ?>
-
-        <div class="cart-toast">
-
-            <i class="fa-solid fa-circle-check"></i>
-
-            <span>
-                Book added to your cart successfully!
-            </span>
-
-        </div>
-
-    <?php endif; ?>
-
     <!-- ================= HEADER ================= -->
 
     <header class="header">
@@ -84,7 +77,9 @@ include "config/database.php";
 
                     <div class="logo-text">
 
-                        <h2>BookVerse</h2>
+                        <h2>
+                            BookVerse
+                        </h2>
 
                         <p>
                             Every Book Has a Story
@@ -101,9 +96,7 @@ include "config/database.php";
                     <ul class="menu">
 
                         <li>
-                            <a
-                                href="#"
-                                class="active">
+                            <a href="index.php">
                                 Home
                             </a>
                         </li>
@@ -136,7 +129,7 @@ include "config/database.php";
 
                 </nav>
 
-                <!-- Right -->
+                <!-- Right Menu -->
 
                 <div class="right-menu">
 
@@ -286,385 +279,300 @@ include "config/database.php";
 
     </header>
 
-    <!-- ================= HERO ================= -->
+    <!-- ================= CART ================= -->
 
-    <section class="hero">
+    <main class="cart-page">
 
         <div class="container">
 
-            <div class="hero-wrapper">
+            <!-- Cart Header -->
 
-                <!-- LEFT -->
+            <div class="cart-page-header">
 
-                <div class="hero-left">
+                <div class="section-title">
 
-                    <span class="hero-tag">
-
-                        📚 Your Favorite Online Book Store
-
-                    </span>
-
-                    <h1>
-
-                        Discover Your <br>
-
-                        Next
-
-                        <span>
-                            Favorite Book
-                        </span>
-
-                    </h1>
+                    <h2>
+                        Shopping Cart
+                    </h2>
 
                     <p>
-
-                        Explore thousands of books from every genre,
-                        discover inspiring stories,
-                        and enjoy a reading experience that opens
-                        the door to endless imagination.
-
+                        Review the books you want to purchase.
                     </p>
 
-                    <div class="hero-button">
-
-                        <a
-                            href="#"
-                            class="btn-purple">
-
-                            Explore Books
-
-                        </a>
-
-                        <a
-                            href="#"
-                            class="btn-yellow">
-
-                            Browse Categories
-
-                        </a>
-
-                    </div>
-
                 </div>
 
-                <!-- RIGHT -->
+                <a
+                    href="index.php"
+                    class="cart-back-btn">
 
-                <div class="hero-right">
+                    <i class="fa-solid fa-arrow-left"></i>
 
-                    <img
-                        src="assets/img/hero-library.jpeg"
-                        alt="Library">
+                    Kembali ke Home
 
-                </div>
+                </a>
 
             </div>
 
-        </div>
+            <?php if (empty($cart)): ?>
 
-    </section>
+                <!-- Empty Cart -->
 
-    <!-- ================= STATISTICS ================= -->
+                <div class="cart-empty">
 
-    <section class="statistics">
-
-        <div class="container">
-
-            <div class="stats-wrapper">
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-
-                        <img
-                            src="assets/img/mdi_account-multiple.png"
-                            alt="">
-
-                    </div>
-
-                    <div class="stat-content">
-
-                        <h2>
-                            12K+
-                        </h2>
-
-                        <p>
-                            Happy Readers
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-
-                        <img
-                            src="assets/img/qlementine-icons_book-16.png"
-                            alt="">
-
-                    </div>
-
-                    <div class="stat-content">
-
-                        <h2>
-                            8K+
-                        </h2>
-
-                        <p>
-                            Book Collection
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-
-                        <img
-                            src="assets/img/si_bar-chart-line.png"
-                            alt="">
-
-                    </div>
-
-                    <div class="stat-content">
-
-                        <h2>
-                            4.9
-                        </h2>
-
-                        <p>
-                            Customer Rating
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-
-                        <img
-                            src="assets/img/mdi_truck-fast-outline.png"
-                            alt="">
-
-                    </div>
-
-                    <div class="stat-content">
-
-                        <h2>
-                            Fast
-                        </h2>
-
-                        <p>
-                            Delivery
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- ================= CATEGORY ================= -->
-
-    <section class="category">
-
-        <div class="container">
-
-            <div class="section-title">
-
-                <h2>
-                    Shop by Category
-                </h2>
-
-                <p>
-                    Find your favorite books from various interesting categories.
-                </p>
-
-            </div>
-
-            <div class="category-wrapper">
-
-                <div class="category-card">
-
-                    <img
-                        src="assets/img/mdi_brain.png"
-                        alt="">
+                    <i class="fa-solid fa-cart-shopping"></i>
 
                     <h3>
-                        Self Development
+                        Keranjang Masih Kosong
                     </h3>
 
-                    <span>
-                        120 Books
-                    </span>
+                    <p>
+                        Yuk cari buku favorit kamu dan tambahkan ke keranjang.
+                    </p>
+
+                    <a
+                        href="index.php"
+                        class="btn-purple">
+
+                        <i class="fa-solid fa-book"></i>
+
+                        Mulai Belanja
+
+                    </a>
 
                 </div>
 
-                <div class="category-card">
+            <?php else: ?>
 
-                    <img
-                        src="assets/img/tabler_book.png"
-                        alt="">
+                <!-- Cart Layout -->
 
-                    <h3>
-                        Novel
-                    </h3>
+                <div class="cart-layout">
 
-                    <span>
-                        340 Books
-                    </span>
+                    <!-- ================= CART ITEMS ================= -->
 
-                </div>
+                    <div class="cart-items">
 
-                <div class="category-card">
+                        <?php foreach ($cart as $item): ?>
 
-                    <img
-                        src="assets/img/streamline_office-building-1.png"
-                        alt="">
+                            <?php
 
-                    <h3>
-                        Business
-                    </h3>
+                            $subtotal =
+                                $item['price'] * $item['quantity'];
 
-                    <span>
-                        96 Books
-                    </span>
+                            $total += $subtotal;
 
-                </div>
+                            ?>
 
-                <div class="category-card">
+                            <div class="cart-item">
 
-                    <img
-                        src="assets/img/qlementine-icons_book-16.png"
-                        alt="">
+                                <!-- Book Image -->
 
-                    <h3>
-                        Education
-                    </h3>
+                                <div class="cart-item-image">
 
-                    <span>
-                        210 Books
-                    </span>
+                                    <img
+                                        src="<?php echo htmlspecialchars($item['image']); ?>"
+                                        alt="<?php echo htmlspecialchars($item['title']); ?>">
 
-                </div>
+                                </div>
 
-                <div class="category-card">
+                                <!-- Book Information -->
 
-                    <img
-                        src="assets/img/hugeicons_book-open-02.png"
-                        alt="">
+                                <div class="cart-item-info">
 
-                    <h3>
-                        Comics
-                    </h3>
+                                    <h3>
 
-                    <span>
-                        180 Books
-                    </span>
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $item['title']
+                                        );
+                                        ?>
 
-                </div>
+                                    </h3>
 
-            </div>
+                                    <p>
 
-        </div>
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $item['author']
+                                        );
+                                        ?>
 
-    </section>
+                                    </p>
 
-    <!-- ================= FEATURED BOOKS ================= -->
+                                    <span class="cart-item-price">
 
-    <section class="featured-books">
+                                        Rp<?php
+                                        echo number_format(
+                                            $item['price'],
+                                            0,
+                                            ',',
+                                            '.'
+                                        );
+                                        ?>
 
-        <div class="container">
+                                    </span>
 
-            <div class="section-title">
+                                </div>
 
-                <h2>
-                    Featured Books
-                </h2>
+                                <!-- Quantity -->
 
-                <p>
-                    Discover our handpicked collection of the most popular books.
-                </p>
+                                <div class="cart-item-quantity">
 
-            </div>
+                                    <a
+                                        href="update-cart.php?id=<?php echo $item['id']; ?>&action=decrease"
+                                        class="quantity-btn">
 
-            <div class="book-grid">
+                                        <i class="fa-solid fa-minus"></i>
 
-                <?php
+                                    </a>
 
-                $query = mysqli_query(
-                    $conn,
-                    "SELECT *
-                     FROM books
-                     ORDER BY id ASC"
-                );
+                                    <span>
 
-                while ($book = mysqli_fetch_assoc($query)):
+                                        <?php
+                                        echo $item['quantity'];
+                                        ?>
 
-                ?>
+                                    </span>
 
-                    <div class="book-card">
+                                    <a
+                                        href="update-cart.php?id=<?php echo $item['id']; ?>&action=increase"
+                                        class="quantity-btn">
 
-                        <a
-                            href="book-detail.php?id=<?php echo $book['id']; ?>"
-                            class="book-detail-link">
+                                        <i class="fa-solid fa-plus"></i>
 
-                            <img
-                                src="<?php echo htmlspecialchars($book['image']); ?>"
-                                alt="<?php echo htmlspecialchars($book['title']); ?>">
+                                    </a>
 
-                            <h3>
-                                <?php echo htmlspecialchars($book['title']); ?>
-                            </h3>
+                                </div>
 
-                            <p>
-                                <?php echo htmlspecialchars($book['author']); ?>
-                            </p>
+                                <!-- Subtotal -->
 
-                            <span class="price">
-                                Rp<?php echo number_format($book['price'], 0, ',', '.'); ?>
+                                <div class="cart-item-subtotal">
+
+                                    <strong>
+
+                                        Rp<?php
+                                        echo number_format(
+                                            $subtotal,
+                                            0,
+                                            ',',
+                                            '.'
+                                        );
+                                        ?>
+
+                                    </strong>
+
+                                </div>
+
+                                <!-- Remove -->
+
+                                <a
+                                    href="remove-from-cart.php?id=<?php echo $item['id']; ?>"
+                                    class="cart-remove">
+
+                                    <i class="fa-solid fa-trash"></i>
+
+                                </a>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    </div>
+
+                    <!-- ================= CART SUMMARY ================= -->
+
+                    <div class="cart-summary">
+
+                        <h3>
+                            Order Summary
+                        </h3>
+
+                        <div class="summary-row">
+
+                            <span>
+                                Subtotal
                             </span>
 
-                        </a>
+                            <strong>
 
-                        <div class="book-action">
+                                Rp<?php
+                                echo number_format(
+                                    $total,
+                                    0,
+                                    ',',
+                                    '.'
+                                );
+                                ?>
 
-                            <a
-                                href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=home"
-                                class="cart-btn">
-
-                                🛒 Cart
-
-                            </a>
-
-                            <a
-                                href="book-detail.php?id=<?php echo $book['id']; ?>"
-                                class="buy-btn">
-
-                                Beli
-
-                            </a>
+                            </strong>
 
                         </div>
 
+                        <div class="summary-row">
+
+                            <span>
+                                Delivery
+                            </span>
+
+                            <strong>
+                                Free
+                            </strong>
+
+                        </div>
+
+                        <hr>
+
+                        <div class="summary-total">
+
+                            <span>
+                                Total
+                            </span>
+
+                            <strong>
+
+                                Rp<?php
+                                echo number_format(
+                                    $total,
+                                    0,
+                                    ',',
+                                    '.'
+                                );
+                                ?>
+
+                            </strong>
+
+                        </div>
+
+                        <!-- Checkout -->
+
+                        <a
+                            href="#"
+                            class="checkout-btn">
+
+                            Proceed to Checkout
+
+                        </a>
+
+                        <!-- Continue Shopping -->
+
+                        <a
+                            href="index.php"
+                            class="continue-shopping">
+
+                            <i class="fa-solid fa-arrow-left"></i>
+
+                            Continue Shopping
+
+                        </a>
+
                     </div>
 
-                <?php endwhile; ?>
+                </div>
 
-            </div>
+            <?php endif; ?>
 
         </div>
 
-    </section>
+    </main>
 
     <!-- ================= FOOTER ================= -->
 
@@ -673,6 +581,8 @@ include "config/database.php";
         <div class="container">
 
             <div class="footer-content">
+
+                <!-- Footer Logo -->
 
                 <div class="footer-logo">
 
@@ -685,13 +595,13 @@ include "config/database.php";
                     </h2>
 
                     <p>
-
                         Every Book Has a Story.
                         Discover books that inspire your journey.
-
                     </p>
 
                 </div>
+
+                <!-- Footer Links -->
 
                 <div class="footer-links">
 
@@ -702,7 +612,7 @@ include "config/database.php";
                     <ul>
 
                         <li>
-                            <a href="#">
+                            <a href="index.php">
                                 Home
                             </a>
                         </li>
@@ -728,6 +638,8 @@ include "config/database.php";
                     </ul>
 
                 </div>
+
+                <!-- Footer Contact -->
 
                 <div class="footer-contact">
 
