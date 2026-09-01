@@ -178,14 +178,14 @@ include "config/database.php";
 
                                 <i class="fa-solid fa-user"></i>
 
-                                <span>
+                                <span> 
 
                                     <?php
                                     echo htmlspecialchars(
                                         $_SESSION['fullname']
                                     );
                                     ?>
-
+                                    
                                 </span>
 
                                 <i class="fa-solid fa-chevron-down"></i>
