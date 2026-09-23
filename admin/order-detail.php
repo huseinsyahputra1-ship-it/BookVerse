@@ -4,50 +4,34 @@ session_start();
 
 include "../config/database.php";
 
-// =========================================================
-// ADMIN ACCESS
-// =========================================================
-
+// Admin access
 if (!isset($_SESSION['user_id'])) {
-
     header("Location: ../login.php");
-
     exit();
-
 }
 
 if ($_SESSION['role'] !== 'admin') {
-
     echo "<script>
         alert('Akses ditolak! Halaman ini hanya untuk admin.');
         window.location='../index.php';
     </script>";
 
     exit();
-
 }
 
-// =========================================================
-// GET ORDER ID
-// =========================================================
-
+// Validate order ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-
     echo "<script>
         alert('ID pesanan tidak valid!');
         window.location='orders.php';
     </script>";
 
     exit();
-
 }
 
 $orderId = (int) $_GET['id'];
 
-// =========================================================
-// GET ORDER DATA
-// =========================================================
-
+// Get order data
 $orderStmt = mysqli_prepare(
     $conn,
     "SELECT
@@ -72,7 +56,6 @@ mysqli_stmt_execute($orderStmt);
 $orderResult = mysqli_stmt_get_result($orderStmt);
 
 if (mysqli_num_rows($orderResult) === 0) {
-
     mysqli_stmt_close($orderStmt);
 
     echo "<script>
@@ -81,20 +64,16 @@ if (mysqli_num_rows($orderResult) === 0) {
     </script>";
 
     exit();
-
 }
 
 $order = mysqli_fetch_assoc($orderResult);
 
 mysqli_stmt_close($orderStmt);
 
-// =========================================================
-// UPDATE ORDER STATUS
-// =========================================================
-
+// Update order status
 if (isset($_POST['update_status'])) {
 
-    $status = $_POST['status'];
+    $status = $_POST['status'] ?? '';
 
     $allowedStatuses = [
         'Pending',
@@ -136,7 +115,6 @@ if (isset($_POST['update_status'])) {
             </script>";
 
             exit();
-
         }
 
         mysqli_stmt_close($updateStmt);
@@ -144,15 +122,10 @@ if (isset($_POST['update_status'])) {
         echo "<script>
             alert('Gagal memperbarui status pesanan!');
         </script>";
-
     }
-
 }
 
-// =========================================================
-// GET ORDER ITEMS
-// =========================================================
-
+// Get order items
 $itemsStmt = mysqli_prepare(
     $conn,
     "SELECT
@@ -194,7 +167,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
         Order Detail - BookVerse
     </title>
 
-
     <!-- Google Font -->
 
     <link
@@ -210,13 +182,11 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-
     <!-- Font Awesome -->
 
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-
 
     <!-- Main CSS -->
 
@@ -226,13 +196,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
 </head>
 
-
 <body>
 
-
-    <!-- =====================================================
-         ADMIN HEADER
-         ===================================================== -->
+    <!-- Admin Header -->
 
     <header class="admin-header">
 
@@ -258,7 +224,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
         </div>
 
-
         <div class="admin-header-right">
 
             <span class="admin-welcome">
@@ -268,7 +233,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                 <?php echo htmlspecialchars($_SESSION['fullname']); ?>
 
             </span>
-
 
             <a
                 href="../logout.php"
@@ -284,17 +248,11 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
     </header>
 
-
-    <!-- =====================================================
-         ADMIN LAYOUT
-         ===================================================== -->
+    <!-- Admin Layout -->
 
     <div class="admin-layout">
 
-
-        <!-- =================================================
-             SIDEBAR
-             ================================================= -->
+        <!-- Sidebar -->
 
         <aside class="admin-sidebar">
 
@@ -310,7 +268,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                 </a>
 
-
                 <a
                     href="books.php"
                     class="admin-nav-link">
@@ -321,7 +278,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                 </a>
 
-
                 <a
                     href="orders.php"
                     class="admin-nav-link active">
@@ -331,7 +287,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                     <span>Manage Orders</span>
 
                 </a>
-
 
                 <a
                     href="users.php"
@@ -344,7 +299,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                 </a>
 
             </nav>
-
 
             <div class="admin-sidebar-bottom">
 
@@ -362,17 +316,11 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
         </aside>
 
-
-        <!-- =================================================
-             MAIN CONTENT
-             ================================================= -->
+        <!-- Main Content -->
 
         <main class="admin-main">
 
-
-            <!-- =================================================
-                 PAGE HEADER
-                 ================================================= -->
+            <!-- Page Header -->
 
             <div class="admin-page-header">
 
@@ -392,7 +340,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                 </div>
 
-
                 <a
                     href="orders.php"
                     class="admin-back-button">
@@ -405,10 +352,7 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
             </div>
 
-
-            <!-- =================================================
-                 ORDER INFORMATION
-                 ================================================= -->
+            <!-- Order Information -->
 
             <section class="admin-section">
 
@@ -421,18 +365,16 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                         </span>
 
                         <h2>
-                            <?php echo htmlspecialchars($order['order_number']); ?>
+                            <?php echo htmlspecialchars(
+                                $order['order_number']
+                            ); ?>
                         </h2>
 
                     </div>
 
                 </div>
 
-
                 <div class="admin-order-info-grid">
-
-
-                    <!-- CUSTOMER -->
 
                     <div class="admin-order-info-card">
 
@@ -441,13 +383,12 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                         </span>
 
                         <strong>
-                            <?php echo htmlspecialchars($order['fullname']); ?>
+                            <?php echo htmlspecialchars(
+                                $order['fullname']
+                            ); ?>
                         </strong>
 
                     </div>
-
-
-                    <!-- EMAIL -->
 
                     <div class="admin-order-info-card">
 
@@ -456,13 +397,54 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                         </span>
 
                         <strong>
-                            <?php echo htmlspecialchars($order['email']); ?>
+                            <?php echo htmlspecialchars(
+                                $order['email']
+                            ); ?>
                         </strong>
 
                     </div>
 
+                    <div class="admin-order-info-card">
 
-                    <!-- DATE -->
+                        <span>
+                            Recipient
+                        </span>
+
+                        <strong>
+                            <?php echo htmlspecialchars(
+                                $order['recipient_name']
+                            ); ?>
+                        </strong>
+
+                    </div>
+
+                    <div class="admin-order-info-card">
+
+                        <span>
+                            Phone
+                        </span>
+
+                        <strong>
+                            <?php echo htmlspecialchars(
+                                $order['phone']
+                            ); ?>
+                        </strong>
+
+                    </div>
+
+                    <div class="admin-order-info-card">
+
+                        <span>
+                            Order Number
+                        </span>
+
+                        <strong>
+                            #<?php echo htmlspecialchars(
+                                $order['order_number']
+                            ); ?>
+                        </strong>
+
+                    </div>
 
                     <div class="admin-order-info-card">
 
@@ -479,13 +461,24 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                     </div>
 
+                    <div class="admin-order-info-card">
 
-                    <!-- TOTAL -->
+                        <span>
+                            Current Status
+                        </span>
+
+                        <strong>
+                            <?php echo htmlspecialchars(
+                                $order['status']
+                            ); ?>
+                        </strong>
+
+                    </div>
 
                     <div class="admin-order-info-card">
 
                         <span>
-                            Total
+                            Total Payment
                         </span>
 
                         <strong class="admin-order-total">
@@ -501,14 +494,25 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                     </div>
 
+                    <div class="admin-order-info-card admin-order-address-card">
+
+                        <span>
+                            Delivery Address
+                        </span>
+
+                        <strong>
+                            <?php echo nl2br(
+                                htmlspecialchars($order['address'])
+                            ); ?>
+                        </strong>
+
+                    </div>
+
                 </div>
 
             </section>
 
-
-            <!-- =================================================
-                 ORDER ITEMS
-                 ================================================= -->
+            <!-- Order Items -->
 
             <section class="admin-section">
 
@@ -528,7 +532,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                 </div>
 
-
                 <div class="admin-order-items">
 
                     <?php if (mysqli_num_rows($itemsResult) > 0): ?>
@@ -537,51 +540,47 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                             <div class="admin-order-item">
 
-
-                                <!-- BOOK COVER -->
-
                                 <img
-                                    src="../<?php echo htmlspecialchars($item['image']); ?>"
-                                    alt="<?php echo htmlspecialchars($item['title']); ?>"
+                                    src="../<?php echo htmlspecialchars(
+                                        $item['image']
+                                    ); ?>"
+                                    alt="<?php echo htmlspecialchars(
+                                        $item['title']
+                                    ); ?>"
                                     class="admin-order-item-cover">
-
-
-                                <!-- BOOK INFORMATION -->
 
                                 <div class="admin-order-item-info">
 
                                     <strong>
-                                        <?php echo htmlspecialchars($item['title']); ?>
+                                        <?php echo htmlspecialchars(
+                                            $item['title']
+                                        ); ?>
                                     </strong>
 
                                     <span>
-                                        <?php echo htmlspecialchars($item['author']); ?>
+                                        <?php echo htmlspecialchars(
+                                            $item['author']
+                                        ); ?>
                                     </span>
 
                                 </div>
 
-
-                                <!-- PRICE -->
-
                                 <div class="admin-order-item-price">
 
                                     <span>
-                                        <?php echo $item['quantity']; ?> ×
+                                        <?php echo (int) $item['quantity']; ?> ×
                                     </span>
 
                                     <strong>
-
                                         Rp<?php echo number_format(
                                             $item['price'],
                                             0,
                                             ',',
                                             '.'
                                         ); ?>
-
                                     </strong>
 
                                 </div>
-
 
                             </div>
 
@@ -609,10 +608,7 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
             </section>
 
-
-            <!-- =================================================
-                 UPDATE STATUS
-                 ================================================= -->
+            <!-- Update Status -->
 
             <section class="admin-section">
 
@@ -632,7 +628,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                 </div>
 
-
                 <form
                     method="POST"
                     class="admin-order-status-form">
@@ -650,7 +645,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                             <option
                                 value="Pending"
-                                <?php echo $order['status'] === 'Pending' ? 'selected' : ''; ?>>
+                                <?php echo $order['status'] === 'Pending'
+                                    ? 'selected'
+                                    : ''; ?>>
 
                                 Pending
 
@@ -658,7 +655,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                             <option
                                 value="Processing"
-                                <?php echo $order['status'] === 'Processing' ? 'selected' : ''; ?>>
+                                <?php echo $order['status'] === 'Processing'
+                                    ? 'selected'
+                                    : ''; ?>>
 
                                 Processing
 
@@ -666,7 +665,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                             <option
                                 value="Shipped"
-                                <?php echo $order['status'] === 'Shipped' ? 'selected' : ''; ?>>
+                                <?php echo $order['status'] === 'Shipped'
+                                    ? 'selected'
+                                    : ''; ?>>
 
                                 Shipped
 
@@ -674,7 +675,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                             <option
                                 value="Completed"
-                                <?php echo $order['status'] === 'Completed' ? 'selected' : ''; ?>>
+                                <?php echo $order['status'] === 'Completed'
+                                    ? 'selected'
+                                    : ''; ?>>
 
                                 Completed
 
@@ -682,7 +685,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
                             <option
                                 value="Cancelled"
-                                <?php echo $order['status'] === 'Cancelled' ? 'selected' : ''; ?>>
+                                <?php echo $order['status'] === 'Cancelled'
+                                    ? 'selected'
+                                    : ''; ?>>
 
                                 Cancelled
 
@@ -691,7 +696,6 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                         </select>
 
                     </div>
-
 
                     <button
                         type="submit"
@@ -708,11 +712,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
             </section>
 
-
         </main>
 
     </div>
-
 
 </body>
 

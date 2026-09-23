@@ -1,14 +1,109 @@
 <?php
+
 session_start();
+
+include "config/database.php";
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
+$userId = (int) $_SESSION['user_id'];
+
 $fullname = $_SESSION['fullname'];
 $email = $_SESSION['email'];
 $role = $_SESSION['role'] ?? 'User';
+
+/*
+|--------------------------------------------------------------------------
+| PROFILE STATISTICS
+|--------------------------------------------------------------------------
+*/
+
+/* Total Orders */
+
+$totalOrders = 0;
+
+$orderStmt = mysqli_prepare(
+    $conn,
+    "SELECT COUNT(*) AS total_orders
+     FROM orders
+     WHERE user_id = ?"
+);
+
+mysqli_stmt_bind_param(
+    $orderStmt,
+    "i",
+    $userId
+);
+
+mysqli_stmt_execute($orderStmt);
+
+$orderResult = mysqli_stmt_get_result($orderStmt);
+
+$orderData = mysqli_fetch_assoc($orderResult);
+
+$totalOrders = (int) ($orderData['total_orders'] ?? 0);
+
+mysqli_stmt_close($orderStmt);
+
+
+/* Cart Items */
+
+$cartItems = 0;
+
+if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+
+    foreach ($_SESSION['cart'] as $item) {
+
+        $cartItems += (int) ($item['quantity'] ?? 0);
+
+    }
+
+}
+
+
+/* Books Purchased */
+
+$booksPurchased = 0;
+
+$purchasedStmt = mysqli_prepare(
+    $conn,
+    "SELECT COALESCE(SUM(oi.quantity), 0) AS books_purchased
+     FROM order_items oi
+     INNER JOIN orders o
+        ON oi.order_id = o.id
+     WHERE o.user_id = ?"
+);
+
+mysqli_stmt_bind_param(
+    $purchasedStmt,
+    "i",
+    $userId
+);
+
+mysqli_stmt_execute($purchasedStmt);
+
+$purchasedResult = mysqli_stmt_get_result($purchasedStmt);
+
+$purchasedData = mysqli_fetch_assoc($purchasedResult);
+
+$booksPurchased = (int) ($purchasedData['books_purchased'] ?? 0);
+
+mysqli_stmt_close($purchasedStmt);
+
+
+/*
+|--------------------------------------------------------------------------
+| WISHLIST
+|--------------------------------------------------------------------------
+|
+| Wishlist akan dihubungkan setelah logic wishlist selesai dibuat.
+|
+*/
+
+$wishlistCount = 0;
 
 ?>
 
@@ -25,8 +120,6 @@ $role = $_SESSION['role'] ?? 'User';
 
     <title>My Profile | BookVerse</title>
 
-    <!-- Google Font -->
-
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com">
@@ -40,13 +133,9 @@ $role = $_SESSION['role'] ?? 'User';
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-    <!-- Font Awesome -->
-
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-
-    <!-- Main CSS -->
 
     <link
         rel="stylesheet"
@@ -63,8 +152,6 @@ $role = $_SESSION['role'] ?? 'User';
         <div class="container">
 
             <div class="profile-navbar">
-
-                <!-- LOGO -->
 
                 <a
                     href="index.php"
@@ -83,8 +170,6 @@ $role = $_SESSION['role'] ?? 'User';
                     </div>
 
                 </a>
-
-                <!-- BACK HOME -->
 
                 <a
                     href="index.php"
@@ -109,8 +194,6 @@ $role = $_SESSION['role'] ?? 'User';
 
         <div class="container">
 
-            <!-- PAGE TITLE -->
-
             <div class="profile-title">
 
                 <span>MY ACCOUNT</span>
@@ -124,7 +207,7 @@ $role = $_SESSION['role'] ?? 'User';
             </div>
 
 
-            <!-- PROFILE LAYOUT -->
+            <!-- ================= PROFILE LAYOUT ================= -->
 
             <div class="profile-layout">
 
@@ -312,6 +395,8 @@ $role = $_SESSION['role'] ?? 'User';
 
             <div class="profile-stats">
 
+                <!-- TOTAL ORDERS -->
+
                 <div class="profile-stat">
 
                     <div class="profile-stat-icon">
@@ -322,7 +407,9 @@ $role = $_SESSION['role'] ?? 'User';
 
                     <div>
 
-                        <strong>0</strong>
+                        <strong>
+                            <?php echo $totalOrders; ?>
+                        </strong>
 
                         <span>Total Orders</span>
 
@@ -330,6 +417,8 @@ $role = $_SESSION['role'] ?? 'User';
 
                 </div>
 
+
+                <!-- WISHLIST -->
 
                 <div class="profile-stat">
 
@@ -341,7 +430,9 @@ $role = $_SESSION['role'] ?? 'User';
 
                     <div>
 
-                        <strong>0</strong>
+                        <strong>
+                            <?php echo $wishlistCount; ?>
+                        </strong>
 
                         <span>Wishlist</span>
 
@@ -349,6 +440,8 @@ $role = $_SESSION['role'] ?? 'User';
 
                 </div>
 
+
+                <!-- CART ITEMS -->
 
                 <div class="profile-stat">
 
@@ -360,7 +453,9 @@ $role = $_SESSION['role'] ?? 'User';
 
                     <div>
 
-                        <strong>0</strong>
+                        <strong>
+                            <?php echo $cartItems; ?>
+                        </strong>
 
                         <span>Cart Items</span>
 
@@ -368,6 +463,8 @@ $role = $_SESSION['role'] ?? 'User';
 
                 </div>
 
+
+                <!-- BOOKS PURCHASED -->
 
                 <div class="profile-stat">
 
@@ -379,7 +476,9 @@ $role = $_SESSION['role'] ?? 'User';
 
                     <div>
 
-                        <strong>0</strong>
+                        <strong>
+                            <?php echo $booksPurchased; ?>
+                        </strong>
 
                         <span>Books Purchased</span>
 

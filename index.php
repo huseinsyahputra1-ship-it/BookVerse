@@ -27,6 +27,10 @@ include "config/database.php";
 
     <link
         rel="preconnect"
+        href="https://fonts.googleapis.com">
+
+    <link
+        rel="preconnect"
         href="https://fonts.googleapis.com"
         crossorigin>
 
@@ -60,6 +64,20 @@ include "config/database.php";
 
             <span>
                 Book added to your cart successfully!
+            </span>
+
+        </div>
+
+    <?php endif; ?>
+
+    <?php if (isset($_GET['added']) && $_GET['added'] === 'wishlist'): ?>
+
+        <div class="wishlist-toast">
+
+            <i class="fa-solid fa-heart"></i>
+
+            <span>
+                Buku berhasil ditambahkan ke wishlist.
             </span>
 
         </div>
@@ -101,35 +119,55 @@ include "config/database.php";
                     <ul class="menu">
 
                         <li>
+
                             <a
                                 href="#"
                                 class="active">
+
                                 Home
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 Books
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 Categories
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 About
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 Contact
+
                             </a>
+
                         </li>
 
                     </ul>
@@ -151,13 +189,13 @@ include "config/database.php";
 
                     </div>
 
-                    <button
-                        type="button"
+                    <a
+                        href="wishlist.php"
                         class="icon-btn">
 
                         <i class="fa-regular fa-heart"></i>
 
-                    </button>
+                    </a>
 
                     <a
                         href="cart.php"
@@ -178,14 +216,14 @@ include "config/database.php";
 
                                 <i class="fa-solid fa-user"></i>
 
-                                <span> 
+                                <span>
 
                                     <?php
                                     echo htmlspecialchars(
                                         $_SESSION['fullname']
                                     );
                                     ?>
-                                    
+
                                 </span>
 
                                 <i class="fa-solid fa-chevron-down"></i>
@@ -614,6 +652,17 @@ include "config/database.php";
 
                     <div class="book-card">
 
+                        <!-- Wishlist -->
+
+                        <a
+                            href="add-to-wishlist.php?id=<?php echo $book['id']; ?>"
+                            class="wishlist-btn"
+                            title="Add to Wishlist">
+
+                            <i class="fa-regular fa-heart"></i>
+
+                        </a>
+
                         <a
                             href="book-detail.php?id=<?php echo $book['id']; ?>"
                             class="book-detail-link">
@@ -702,27 +751,43 @@ include "config/database.php";
                     <ul>
 
                         <li>
+
                             <a href="#">
+
                                 Home
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 Books
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 Categories
+
                             </a>
+
                         </li>
 
                         <li>
+
                             <a href="#">
+
                                 About
+
                             </a>
+
                         </li>
 
                     </ul>

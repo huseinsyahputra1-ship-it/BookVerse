@@ -229,7 +229,7 @@ $query = mysqli_query(
                                 </div>
 
                                 <a
-                                    href="#"
+                                    href="order-detail.php?id=<?php echo $order['id']; ?>"
                                     class="order-detail-btn">
 
                                     View Details

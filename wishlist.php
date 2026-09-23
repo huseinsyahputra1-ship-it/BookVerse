@@ -1,17 +1,53 @@
 <?php
+
 session_start();
 
 include "config/database.php";
 
-/*
-|--------------------------------------------------------------------------
-| Ambil Data Cart
-|--------------------------------------------------------------------------
-*/
+if (!isset($_SESSION['user_id'])) {
 
-$cart = $_SESSION['cart'] ?? [];
+    header("Location: login.php");
+    exit();
 
-$total = 0;
+}
+
+$userId = (int) $_SESSION['user_id'];
+
+$stmt = mysqli_prepare(
+    $conn,
+    "SELECT
+        wishlist.id AS wishlist_id,
+        books.id AS book_id,
+        books.title,
+        books.author,
+        books.price,
+        books.image
+     FROM wishlist
+     INNER JOIN books
+        ON wishlist.book_id = books.id
+     WHERE wishlist.user_id = ?
+     ORDER BY wishlist.created_at DESC"
+);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $userId
+);
+
+mysqli_stmt_execute($stmt);
+
+$result = mysqli_stmt_get_result($stmt);
+
+$wishlistBooks = [];
+
+while ($book = mysqli_fetch_assoc($result)) {
+
+    $wishlistBooks[] = $book;
+
+}
+
+mysqli_stmt_close($stmt);
 
 ?>
 
@@ -26,7 +62,7 @@ $total = 0;
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Shopping Cart - BookVerse</title>
+    <title>My Wishlist - BookVerse</title>
 
     <!-- Google Font -->
 
@@ -96,40 +132,60 @@ $total = 0;
                     <ul class="menu">
 
                         <li>
+
                             <a href="index.php">
+
                                 Home
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#books">
+
                                 Books
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#categories">
+
                                 Categories
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#about">
+
                                 About
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#contact">
+
                                 Contact
+
                             </a>
+
                         </li>
 
                     </ul>
 
                 </nav>
 
-                <!-- Right Menu -->
+                <!-- Right -->
 
                 <div class="right-menu">
 
@@ -144,13 +200,13 @@ $total = 0;
 
                     </div>
 
-                    <button
-                        type="button"
+                    <a
+                        href="wishlist.php"
                         class="icon-btn">
 
-                        <i class="fa-regular fa-heart"></i>
+                        <i class="fa-solid fa-heart"></i>
 
-                    </button>
+                    </a>
 
                     <a
                         href="cart.php"
@@ -279,63 +335,59 @@ $total = 0;
 
     </header>
 
-    <!-- ================= CART ================= -->
 
-    <main class="cart-page">
+    <!-- ================= WISHLIST ================= -->
+
+    <section class="featured-books wishlist-page">
 
         <div class="container">
 
-            <!-- Cart Header -->
+            <div class="section-title">
 
-            <div class="cart-page-header">
+                <h2>
+                    My Wishlist
+                </h2>
 
-                <div class="section-title">
-
-                    <h2>
-                        Shopping Cart
-                    </h2>
-
-                    <p>
-                        Review the books you want to purchase.
-                    </p>
-
-                </div>
+                <p>
+                    Books you've saved for later.
+                </p>
 
                 <a
                     href="index.php"
-                    class="cart-back-btn">
+                    class="wishlist-back-btn">
 
                     <i class="fa-solid fa-arrow-left"></i>
 
-                    Kembali ke Home
+                    Kembali ke Beranda
 
                 </a>
 
             </div>
 
-            <?php if (empty($cart)): ?>
 
-                <!-- Empty Cart -->
+            <?php if (empty($wishlistBooks)): ?>
 
-                <div class="cart-empty">
+                <div class="empty-state">
 
-                    <i class="fa-solid fa-cart-shopping"></i>
+                    <div class="empty-icon">
 
-                    <h3>
-                        Keranjang Masih Kosong
-                    </h3>
+                        ❤️
+
+                    </div>
+
+                    <h2>
+                        Your wishlist is empty
+                    </h2>
 
                     <p>
-                        Yuk cari buku favorit kamu dan tambahkan ke keranjang.
+                        Save your favorite books here and find them easily later.
                     </p>
 
                     <a
                         href="index.php"
-                        class="btn-purple">
+                        class="buy-btn">
 
-                        <i class="fa-solid fa-book"></i>
-
-                        Mulai Belanja
+                        Explore Books
 
                     </a>
 
@@ -343,228 +395,80 @@ $total = 0;
 
             <?php else: ?>
 
-                <!-- Cart Layout -->
+                <div class="book-grid">
 
-                <div class="cart-layout">
+                    <?php foreach ($wishlistBooks as $book): ?>
 
-                    <!-- ================= CART ITEMS ================= -->
+                        <div class="book-card">
 
-                    <div class="cart-items">
+                            <a
+                                href="book-detail.php?id=<?php echo $book['book_id']; ?>"
+                                class="book-detail-link">
 
-                        <?php foreach ($cart as $item): ?>
+                                <img
+                                    src="<?php echo htmlspecialchars($book['image']); ?>"
+                                    alt="<?php echo htmlspecialchars($book['title']); ?>">
 
-                            <?php
+                                <h3>
 
-                            $subtotal =
-                                $item['price'] * $item['quantity'];
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $book['title']
+                                    );
+                                    ?>
 
-                            $total += $subtotal;
+                                </h3>
 
-                            ?>
+                                <p>
 
-                            <div class="cart-item">
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $book['author']
+                                    );
+                                    ?>
 
-                                <!-- Book Image -->
+                                </p>
 
-                                <div class="cart-item-image">
+                                <span class="price">
 
-                                    <img
-                                        src="<?php echo htmlspecialchars($item['image']); ?>"
-                                        alt="<?php echo htmlspecialchars($item['title']); ?>">
+                                    Rp<?php
+                                    echo number_format(
+                                        $book['price'],
+                                        0,
+                                        ',',
+                                        '.'
+                                    );
+                                    ?>
 
-                                </div>
+                                </span>
 
-                                <!-- Book Information -->
+                            </a>
 
-                                <div class="cart-item-info">
-
-                                    <h3>
-
-                                        <?php
-                                        echo htmlspecialchars(
-                                            $item['title']
-                                        );
-                                        ?>
-
-                                    </h3>
-
-                                    <p>
-
-                                        <?php
-                                        echo htmlspecialchars(
-                                            $item['author']
-                                        );
-                                        ?>
-
-                                    </p>
-
-                                    <span class="cart-item-price">
-
-                                        Rp<?php
-                                        echo number_format(
-                                            $item['price'],
-                                            0,
-                                            ',',
-                                            '.'
-                                        );
-                                        ?>
-
-                                    </span>
-
-                                </div>
-
-                                <!-- Quantity -->
-
-                                <div class="cart-item-quantity">
-
-                                    <a
-                                        href="update-cart.php?id=<?php echo $item['id']; ?>&action=decrease"
-                                        class="quantity-btn">
-
-                                        <i class="fa-solid fa-minus"></i>
-
-                                    </a>
-
-                                    <span>
-
-                                        <?php
-                                        echo $item['quantity'];
-                                        ?>
-
-                                    </span>
-
-                                    <a
-                                        href="update-cart.php?id=<?php echo $item['id']; ?>&action=increase"
-                                        class="quantity-btn">
-
-                                        <i class="fa-solid fa-plus"></i>
-
-                                    </a>
-
-                                </div>
-
-                                <!-- Subtotal -->
-
-                                <div class="cart-item-subtotal">
-
-                                    <strong>
-
-                                        Rp<?php
-                                        echo number_format(
-                                            $subtotal,
-                                            0,
-                                            ',',
-                                            '.'
-                                        );
-                                        ?>
-
-                                    </strong>
-
-                                </div>
-
-                                <!-- Remove -->
+                            <div class="book-action">
 
                                 <a
-                                    href="remove-from-cart.php?id=<?php echo $item['id']; ?>"
-                                    class="cart-remove">
+                                    href="remove-from-wishlist.php?id=<?php echo $book['book_id']; ?>"
+                                    class="cart-btn">
 
-                                    <i class="fa-solid fa-trash"></i>
+                                    <i class="fa-solid fa-heart-crack"></i>
+
+                                    Remove
+
+                                </a>
+
+                                <a
+                                    href="add-to-cart.php?id=<?php echo $book['book_id']; ?>"
+                                    class="buy-btn">
+
+                                    🛒 Cart
 
                                 </a>
 
                             </div>
 
-                        <?php endforeach; ?>
-
-                    </div>
-
-                    <!-- ================= CART SUMMARY ================= -->
-
-                    <div class="cart-summary">
-
-                        <h3>
-                            Order Summary
-                        </h3>
-
-                        <div class="summary-row">
-
-                            <span>
-                                Subtotal
-                            </span>
-
-                            <strong>
-
-                                Rp<?php
-                                echo number_format(
-                                    $total,
-                                    0,
-                                    ',',
-                                    '.'
-                                );
-                                ?>
-
-                            </strong>
-
                         </div>
 
-                        <div class="summary-row">
-
-                            <span>
-                                Delivery
-                            </span>
-
-                            <strong>
-                                Free
-                            </strong>
-
-                        </div>
-
-                        <hr>
-
-                        <div class="summary-total">
-
-                            <span>
-                                Total
-                            </span>
-
-                            <strong>
-
-                                Rp<?php
-                                echo number_format(
-                                    $total,
-                                    0,
-                                    ',',
-                                    '.'
-                                );
-                                ?>
-
-                            </strong>
-
-                        </div>
-
-                        <!-- Checkout -->
-
-                        <a
-                            href="checkout.php"
-                            class="checkout-btn">
-
-                            Proceed to Checkout
-
-                        </a>
-
-                        <!-- Continue Shopping -->
-
-                        <a
-                            href="index.php"
-                            class="continue-shopping">
-
-                            <i class="fa-solid fa-arrow-left"></i>
-
-                            Continue Shopping
-
-                        </a>
-
-                    </div>
+                    <?php endforeach; ?>
 
                 </div>
 
@@ -572,7 +476,8 @@ $total = 0;
 
         </div>
 
-    </main>
+    </section>
+
 
     <!-- ================= FOOTER ================= -->
 
@@ -581,8 +486,6 @@ $total = 0;
         <div class="container">
 
             <div class="footer-content">
-
-                <!-- Footer Logo -->
 
                 <div class="footer-logo">
 
@@ -595,13 +498,13 @@ $total = 0;
                     </h2>
 
                     <p>
+
                         Every Book Has a Story.
                         Discover books that inspire your journey.
+
                     </p>
 
                 </div>
-
-                <!-- Footer Links -->
 
                 <div class="footer-links">
 
@@ -612,34 +515,48 @@ $total = 0;
                     <ul>
 
                         <li>
+
                             <a href="index.php">
+
                                 Home
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#books">
+
                                 Books
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#categories">
+
                                 Categories
+
                             </a>
+
                         </li>
 
                         <li>
-                            <a href="#">
+
+                            <a href="index.php#about">
+
                                 About
+
                             </a>
+
                         </li>
 
                     </ul>
 
                 </div>
-
-                <!-- Footer Contact -->
 
                 <div class="footer-contact">
 
@@ -674,6 +591,7 @@ $total = 0;
         </div>
 
     </footer>
+
 
     <script src="assets/js/script.js"></script>
 
