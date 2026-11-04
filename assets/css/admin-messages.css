@@ -1,0 +1,302 @@
+
+/* =========================================================
+   BOOKVERSE ADMIN MESSAGES
+   ========================================================= */
+
+.message-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 22px;
+}
+
+.message-filters a {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 15px;
+    border: 1px solid #eeeeee;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #777777;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    transition: 0.25s ease;
+}
+
+.message-filters a:hover,
+.message-filters a.active {
+    border-color: #6c5ce7;
+    background: #f5f3ff;
+    color: #6c5ce7;
+}
+
+.message-filters a span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 21px;
+    height: 21px;
+    padding: 0 6px;
+    border-radius: 20px;
+    background: #f1f1f1;
+    color: #666666;
+    font-size: 10px;
+}
+
+.message-filters a.active span {
+    background: #6c5ce7;
+    color: #ffffff;
+}
+
+
+/* ================= TABLE ================= */
+
+.message-table {
+    min-width: 850px;
+}
+
+.message-sender {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.message-sender strong {
+    color: #333333;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.message-sender span {
+    color: #999999;
+    font-size: 11px;
+    word-break: break-word;
+}
+
+.message-subject {
+    color: #444444;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+
+/* ================= STATUS ================= */
+
+.message-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 75px;
+    padding: 6px 11px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.message-status.unread {
+    background: #fff4e5;
+    color: #c47a18;
+}
+
+.message-status.read {
+    background: #eaf8f0;
+    color: #2f855a;
+}
+
+
+/* ================= VIEW BUTTON ================= */
+
+.message-view-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    text-decoration: none;
+    background: #6c5ce7;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    transition: 0.25s ease;
+}
+
+.message-view-button:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+
+/* ================= EMPTY STATE ================= */
+
+.message-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 55px 20px;
+    text-align: center;
+}
+
+.message-empty i {
+    margin-bottom: 5px;
+    color: #cccccc;
+    font-size: 35px;
+}
+
+.message-empty strong {
+    color: #555555;
+    font-size: 14px;
+}
+
+.message-empty span {
+    color: #999999;
+    font-size: 12px;
+}
+
+
+/* ================= MESSAGE DETAIL ================= */
+
+.message-detail-section {
+    max-width: 100%;
+}
+
+.message-detail-info {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 15px;
+    margin-bottom: 28px;
+}
+
+.message-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 17px;
+    border: 1px solid #eeeeee;
+    border-radius: 12px;
+    background: #ffffff;
+    min-width: 0;
+}
+
+.message-detail-item span {
+    color: #999999;
+    font-size: 11px;
+}
+
+.message-detail-item strong {
+    color: #333333;
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.message-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message-content-label {
+    color: #999999;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.message-content {
+    min-height: 180px;
+    padding: 20px;
+    border: 1px solid #eeeeee;
+    border-radius: 12px;
+    background: #fafafa;
+    color: #555555;
+    font-size: 13px;
+    line-height: 1.9;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.message-detail-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.message-detail-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 11px 17px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s ease;
+}
+
+.message-detail-actions a:hover {
+    transform: translateY(-2px);
+}
+
+.message-detail-actions .admin-form-cancel {
+    background: #f3f3f3;
+    color: #666666;
+}
+
+.message-detail-actions .admin-form-submit {
+    border: none;
+    background: #6c5ce7;
+    color: #ffffff;
+}
+
+.message-detail-actions .admin-form-submit:hover {
+    opacity: 0.9;
+}
+
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 768px) {
+
+    .message-detail-info {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .message-detail-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .message-detail-actions a {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+}
+
+@media (max-width: 480px) {
+
+    .message-filters {
+        gap: 7px;
+    }
+
+    .message-filters a {
+        padding: 8px 10px;
+        font-size: 10px;
+    }
+
+    .message-content {
+        padding: 15px;
+        font-size: 12px;
+    }
+
+}

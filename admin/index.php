@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -218,6 +219,19 @@ $recentBooksQuery = mysqli_query(
                     <i class="fa-solid fa-users"></i>
 
                     <span>Manage Users</span>
+
+                </a>
+
+
+                <!-- MESSAGES -->
+
+                <a
+                    href="messages.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-envelope"></i>
+
+                    <span>Messages</span>
 
                 </a>
 

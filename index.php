@@ -132,7 +132,7 @@ include "config/database.php";
 
                         <li>
 
-                            <a href="#">
+                            <a href="books.php">
 
                                 Books
 
@@ -142,7 +142,7 @@ include "config/database.php";
 
                         <li>
 
-                            <a href="#">
+                            <a href="categories.php">
 
                                 Categories
 
@@ -152,7 +152,7 @@ include "config/database.php";
 
                         <li>
 
-                            <a href="#">
+                            <a href="about.php">
 
                                 About
 
@@ -162,7 +162,7 @@ include "config/database.php";
 
                         <li>
 
-                            <a href="#">
+                            <a href="contact.php">
 
                                 Contact
 
@@ -513,7 +513,7 @@ include "config/database.php";
 
     <!-- ================= CATEGORY ================= -->
 
-    <section class="category">
+    <section class="category" id="categories">
 
         <div class="container">
 
@@ -619,7 +619,7 @@ include "config/database.php";
 
     <!-- ================= FEATURED BOOKS ================= -->
 
-    <section class="featured-books">
+    <section class="featured-books" id="books">
 
         <div class="container">
 
@@ -699,7 +699,7 @@ include "config/database.php";
                                 href="book-detail.php?id=<?php echo $book['id']; ?>"
                                 class="buy-btn">
 
-                                Beli
+                                Buy
 
                             </a>
 
@@ -762,7 +762,7 @@ include "config/database.php";
 
                         <li>
 
-                            <a href="#">
+                            <a href="#books">
 
                                 Books
 
@@ -772,7 +772,7 @@ include "config/database.php";
 
                         <li>
 
-                            <a href="#">
+                            <a href="#categories">
 
                                 Categories
 

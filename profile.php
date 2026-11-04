@@ -98,12 +98,32 @@ mysqli_stmt_close($purchasedStmt);
 |--------------------------------------------------------------------------
 | WISHLIST
 |--------------------------------------------------------------------------
-|
-| Wishlist akan dihubungkan setelah logic wishlist selesai dibuat.
-|
 */
 
 $wishlistCount = 0;
+
+$wishlistStmt = mysqli_prepare(
+    $conn,
+    "SELECT COUNT(*) AS wishlist_count
+     FROM wishlist
+     WHERE user_id = ?"
+);
+
+mysqli_stmt_bind_param(
+    $wishlistStmt,
+    "i",
+    $userId
+);
+
+mysqli_stmt_execute($wishlistStmt);
+
+$wishlistResult = mysqli_stmt_get_result($wishlistStmt);
+
+$wishlistData = mysqli_fetch_assoc($wishlistResult);
+
+$wishlistCount = (int) ($wishlistData['wishlist_count'] ?? 0);
+
+mysqli_stmt_close($wishlistStmt);
 
 ?>
 
