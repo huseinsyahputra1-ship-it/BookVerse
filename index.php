@@ -4,6 +4,17 @@ session_start();
 
 include "config/database.php";
 
+// Mengambil kategori dan menghitung jumlah buku
+$categoryQuery = mysqli_query(
+    $conn,
+    "SELECT category, COUNT(*) AS total_books
+     FROM books
+     WHERE category IS NOT NULL
+       AND TRIM(category) != ''
+     GROUP BY category
+     ORDER BY category ASC"
+);
+
 ?>
 
 <!DOCTYPE html>
@@ -49,6 +60,12 @@ include "config/database.php";
     <link
         rel="stylesheet"
         href="assets/css/style.css">
+
+    <!-- CSS Khusus Categories -->
+
+    <link
+        rel="stylesheet"
+        href="assets/css/categories.css">
 
 </head>
 
@@ -531,85 +548,135 @@ include "config/database.php";
 
             <div class="category-wrapper">
 
-                <div class="category-card">
+                <?php if ($categoryQuery && mysqli_num_rows($categoryQuery) > 0): ?>
 
-                    <img
-                        src="assets/img/mdi_brain.png"
-                        alt="">
+                    <?php while ($category = mysqli_fetch_assoc($categoryQuery)): ?>
 
-                    <h3>
-                        Self Development
-                    </h3>
+                        <?php
 
-                    <span>
-                        120 Books
-                    </span>
+                        $categoryName = strtolower(
+                            trim($category['category'])
+                        );
 
-                </div>
+                        $categoryName = str_replace(
+                            ' ',
+                            '-',
+                            $categoryName
+                        );
 
-                <div class="category-card">
+                        // Logo dan ikon kategori
 
-                    <img
-                        src="assets/img/tabler_book.png"
-                        alt="">
+                        $categoryIcons = [
 
-                    <h3>
-                        Novel
-                    </h3>
+                            'self-development' => [
+                                'image' => 'assets/img/mdi_brain.png',
+                                'class' => 'icon-self-development'
+                            ],
 
-                    <span>
-                        340 Books
-                    </span>
+                            'novel' => [
+                                'image' => 'assets/img/tabler_book.png',
+                                'class' => 'icon-fiction'
+                            ],
 
-                </div>
+                            'business' => [
+                                'image' => 'assets/img/streamline_office-building-1.png',
+                                'class' => 'icon-business'
+                            ],
 
-                <div class="category-card">
+                            'education' => [
+                                'image' => 'assets/img/qlementine-icons_book-16.png',
+                                'class' => 'icon-education'
+                            ],
 
-                    <img
-                        src="assets/img/streamline_office-building-1.png"
-                        alt="">
+                            'comics' => [
+                                'image' => 'assets/img/hugeicons_book-open-02.png',
+                                'class' => 'icon-comics'
+                            ],
 
-                    <h3>
-                        Business
-                    </h3>
+                            'fantasy' => [
+                                'icon' => 'fa-wand-magic-sparkles',
+                                'class' => 'icon-fantasy'
+                            ],
 
-                    <span>
-                        96 Books
-                    </span>
+                            'fiction' => [
+                                'icon' => 'fa-book-open',
+                                'class' => 'icon-fiction'
+                            ],
 
-                </div>
+                            'romance' => [
+                                'icon' => 'fa-heart',
+                                'class' => 'icon-romance'
+                            ]
 
-                <div class="category-card">
+                        ];
 
-                    <img
-                        src="assets/img/qlementine-icons_book-16.png"
-                        alt="">
+                        $categoryStyle = $categoryIcons[$categoryName] ?? [
+                            'icon' => 'fa-book-open',
+                            'class' => 'icon-default'
+                        ];
 
-                    <h3>
-                        Education
-                    </h3>
+                        ?>
 
-                    <span>
-                        210 Books
-                    </span>
+                        <a
+                            href="books.php?category=<?php echo urlencode($category['category']); ?>"
+                            class="category-card">
 
-                </div>
+                            <!-- Category Icon -->
 
-                <div class="category-card">
+                            <?php if (isset($categoryStyle['image'])): ?>
 
-                    <img
-                        src="assets/img/hugeicons_book-open-02.png"
-                        alt="">
+                                <img
+                                    src="<?php echo htmlspecialchars($categoryStyle['image']); ?>"
+                                    alt="<?php echo htmlspecialchars($category['category']); ?>"
+                                    class="category-icon">
 
-                    <h3>
-                        Comics
-                    </h3>
+                            <?php else: ?>
 
-                    <span>
-                        180 Books
-                    </span>
+                                <i class="fa-solid <?php echo $categoryStyle['icon']; ?> category-icon <?php echo $categoryStyle['class']; ?>"></i>
 
-                </div>
+                            <?php endif; ?>
+
+                            <!-- Category Name -->
+
+                            <h3>
+
+                                <?php
+                                echo htmlspecialchars(
+                                    $category['category']
+                                );
+                                ?>
+
+                            </h3>
+
+                            <!-- Total Books -->
+
+                            <span>
+
+                                <?php
+
+                                $totalBooks = (int) $category['total_books'];
+
+                                echo $totalBooks;
+
+                                echo ($totalBooks == 1)
+                                    ? " Book Available"
+                                    : " Books Available";
+
+                                ?>
+
+                            </span>
+
+                        </a>
+
+                    <?php endwhile; ?>
+
+                <?php else: ?>
+
+                    <p>
+                        No categories available yet.
+                    </p>
+
+                <?php endif; ?>
 
             </div>
 

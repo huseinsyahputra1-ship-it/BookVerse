@@ -58,6 +58,34 @@ if (!$book) {
 
 /*
 |--------------------------------------------------------------------------
+| Buy Now
+|--------------------------------------------------------------------------
+*/
+
+$buy_now = isset($_GET['buy_now']) && $_GET['buy_now'] === '1';
+
+if ($buy_now) {
+
+    // Kosongkan cart sebelumnya
+    $_SESSION['cart'] = [];
+
+    // Masukkan buku yang dipilih
+    $_SESSION['cart'][$book_id] = [
+        'id'       => $book['id'],
+        'title'    => $book['title'],
+        'author'   => $book['author'],
+        'price'    => $book['price'],
+        'image'    => $book['image'],
+        'quantity' => 1
+    ];
+
+    // Langsung menuju checkout
+    header("Location: checkout.php");
+    exit();
+}
+
+/*
+|--------------------------------------------------------------------------
 | Buat Session Cart Jika Belum Ada
 |--------------------------------------------------------------------------
 */
@@ -110,3 +138,5 @@ if ($redirect === 'detail') {
 
 header("Location: index.php?added=success");
 exit();
+
+?>

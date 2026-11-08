@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -132,11 +133,12 @@ if (!isset($_SESSION['last_order'])) {
                 recipient_name,
                 phone,
                 address,
+                payment_method,
                 order_number,
                 total_price,
                 status
             )
-            VALUES (?, ?, ?, ?, ?, ?, 'Pending')"
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')"
         );
 
         if (!$order_stmt) {
@@ -147,11 +149,12 @@ if (!isset($_SESSION['last_order'])) {
 
         mysqli_stmt_bind_param(
             $order_stmt,
-            "issssd",
+            "isssssd",
             $user_id,
             $recipient_name,
             $phone,
             $address,
+            $payment_method,
             $order_number,
             $total_price
         );
@@ -286,12 +289,6 @@ if (!isset($_SESSION['last_order'])) {
 
     } catch (Exception $e) {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Rollback Jika Gagal
-        |--------------------------------------------------------------------------
-        */
-
         mysqli_rollback($conn);
 
         die(
@@ -349,9 +346,7 @@ $order_date = date(
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>
-        Payment Successful - BookVerse
-    </title>
+    <title>Payment Successful - BookVerse</title>
 
     <!-- Google Font -->
 
@@ -374,336 +369,15 @@ $order_date = date(
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <!-- CSS -->
+    <!-- QR Code Library -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Existing Global CSS -->
 
     <link
         rel="stylesheet"
         href="assets/css/style.css">
-
-    <style>
-
-        .payment-success-page {
-            padding: 70px 0 90px;
-            background: #faf9ff;
-            min-height: calc(100vh - 100px);
-        }
-
-        .payment-success-container {
-            max-width: 850px;
-            margin: 0 auto;
-        }
-
-        .payment-success-card {
-            background: #ffffff;
-            border-radius: 28px;
-            padding: 45px;
-            box-shadow: 0 12px 35px rgba(76, 61, 125, 0.08);
-        }
-
-        .success-header {
-            text-align: center;
-            padding-bottom: 30px;
-            border-bottom: 1px solid #ece9f3;
-        }
-
-        .success-icon {
-            width: 76px;
-            height: 76px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            background: #f0ebff;
-            color: #6c3ef4;
-            font-size: 32px;
-        }
-
-        .success-header h1 {
-            margin: 0 0 10px;
-            color: #292333;
-            font-size: 30px;
-            font-weight: 700;
-        }
-
-        .success-header p {
-            margin: 0;
-            color: #777181;
-            font-size: 14px;
-        }
-
-        .simulation-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            margin-top: 18px;
-            padding: 8px 14px;
-            border-radius: 999px;
-            background: #f0ebff;
-            color: #6c3ef4;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .order-info {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 18px;
-            margin: 30px 0;
-        }
-
-        .order-info-box {
-            padding: 17px;
-            border-radius: 14px;
-            background: #faf9ff;
-        }
-
-        .order-info-box span {
-            display: block;
-            margin-bottom: 6px;
-            color: #8a8495;
-            font-size: 11px;
-        }
-
-        .order-info-box strong {
-            color: #292333;
-            font-size: 13px;
-        }
-
-        .receipt-section {
-            margin-top: 30px;
-        }
-
-        .receipt-section h3 {
-            margin: 0 0 18px;
-            color: #292333;
-            font-size: 18px;
-        }
-
-        .receipt-items {
-            display: flex;
-            flex-direction: column;
-            border: 1px solid #ece9f3;
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        .receipt-item {
-            display: grid;
-            grid-template-columns: 1fr auto auto;
-            gap: 20px;
-            align-items: center;
-            padding: 17px 20px;
-            border-bottom: 1px solid #ece9f3;
-        }
-
-        .receipt-item:last-child {
-            border-bottom: none;
-        }
-
-        .receipt-item-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .receipt-item-info strong {
-            color: #292333;
-            font-size: 13px;
-        }
-
-        .receipt-item-info span {
-            color: #8a8495;
-            font-size: 11px;
-        }
-
-        .receipt-item-quantity {
-            color: #777181;
-            font-size: 12px;
-        }
-
-        .receipt-item-price {
-            color: #443c52;
-            font-size: 13px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .receipt-total {
-            margin-top: 22px;
-            padding: 20px;
-            border-radius: 16px;
-            background: #f7f4ff;
-        }
-
-        .receipt-total-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            margin-bottom: 10px;
-            color: #777181;
-            font-size: 13px;
-        }
-
-        .receipt-total-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .receipt-total-row strong {
-            color: #443c52;
-        }
-
-        .receipt-grand-total {
-            padding-top: 15px;
-            margin-top: 15px;
-            border-top: 1px solid #ddd5ff;
-        }
-
-        .receipt-grand-total span {
-            color: #292333;
-            font-size: 15px;
-            font-weight: 600;
-        }
-
-        .receipt-grand-total strong {
-            color: #6c3ef4;
-            font-size: 21px;
-            font-weight: 700;
-        }
-
-        .shipping-section {
-            margin-top: 28px;
-            padding: 22px;
-            border: 1px solid #ece9f3;
-            border-radius: 16px;
-        }
-
-        .shipping-section h3 {
-            margin: 0 0 18px;
-            color: #292333;
-            font-size: 16px;
-        }
-
-        .shipping-row {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 10px;
-        }
-
-        .shipping-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .shipping-label {
-            min-width: 130px;
-            color: #8a8495;
-            font-size: 12px;
-        }
-
-        .shipping-value {
-            color: #443c52;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .success-actions {
-            display: flex;
-            justify-content: center;
-            gap: 14px;
-            margin-top: 32px;
-        }
-
-        .success-action-btn {
-            min-width: 180px;
-            height: 48px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 0 20px;
-            border-radius: 12px;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: 0.3s ease;
-        }
-
-        .success-action-primary {
-            background: #6c3ef4;
-            color: #ffffff;
-        }
-
-        .success-action-primary:hover {
-            background: #5530d9;
-        }
-
-        .success-action-secondary {
-            border: 2px solid #6c3ef4;
-            background: #ffffff;
-            color: #6c3ef4;
-        }
-
-        .success-action-secondary:hover {
-            background: #6c3ef4;
-            color: #ffffff;
-        }
-
-        .success-note {
-            margin: 25px 0 0;
-            padding: 14px 18px;
-            border-radius: 12px;
-            background: #faf9ff;
-            color: #8a8495;
-            font-size: 11px;
-            line-height: 1.7;
-            text-align: center;
-        }
-
-        .success-note i {
-            margin-right: 5px;
-            color: #6c3ef4;
-        }
-
-        @media (max-width: 768px) {
-
-            .payment-success-card {
-                padding: 30px 20px;
-            }
-
-            .order-info {
-                grid-template-columns: 1fr;
-            }
-
-            .receipt-item {
-                grid-template-columns: 1fr auto;
-            }
-
-            .receipt-item-quantity {
-                grid-column: 2;
-                grid-row: 1;
-            }
-
-            .receipt-item-price {
-                grid-column: 1 / -1;
-            }
-
-            .shipping-row {
-                flex-direction: column;
-                gap: 4px;
-            }
-
-            .success-actions {
-                flex-direction: column;
-            }
-
-            .success-action-btn {
-                width: 100%;
-            }
-        }
-
-    </style>
 
 </head>
 
@@ -717,8 +391,6 @@ $order_date = date(
 
             <div class="navbar">
 
-                <!-- Logo -->
-
                 <div class="logo">
 
                     <img
@@ -727,59 +399,27 @@ $order_date = date(
 
                     <div class="logo-text">
 
-                        <h2>
-                            BookVerse
-                        </h2>
+                        <h2>BookVerse</h2>
 
-                        <p>
-                            Every Book Has a Story
-                        </p>
+                        <p>Every Book Has a Story</p>
 
                     </div>
 
                 </div>
 
-                <!-- Menu -->
-
                 <nav>
 
                     <ul class="menu">
 
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Books
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Categories
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                About
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Contact
-                            </a>
-                        </li>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="books.php">Books</a></li>
+                        <li><a href="categories.php">Categories</a></li>
+                        <li><a href="about.php">About</a></li>
+                        <li><a href="contact.php">Contact</a></li>
 
                     </ul>
 
                 </nav>
-
-                <!-- Right Menu -->
 
                 <div class="right-menu">
 
@@ -802,9 +442,7 @@ $order_date = date(
 
                     </button>
 
-                    <a
-                        href="cart.php"
-                        class="icon-btn">
+                    <a href="cart.php" class="icon-btn">
 
                         <i class="fa-solid fa-cart-shopping"></i>
 
@@ -869,9 +507,7 @@ $order_date = date(
 
                                 <i class="fa-solid fa-user"></i>
 
-                                <span>
-                                    Profile
-                                </span>
+                                <span>Profile</span>
 
                             </a>
 
@@ -879,9 +515,7 @@ $order_date = date(
 
                                 <i class="fa-solid fa-box"></i>
 
-                                <span>
-                                    Pesanan Saya
-                                </span>
+                                <span>Pesanan Saya</span>
 
                             </a>
 
@@ -893,9 +527,7 @@ $order_date = date(
 
                                 <i class="fa-solid fa-right-from-bracket"></i>
 
-                                <span>
-                                    Logout
-                                </span>
+                                <span>Logout</span>
 
                             </a>
 
@@ -931,9 +563,7 @@ $order_date = date(
 
                         </div>
 
-                        <h1>
-                            Payment Successful!
-                        </h1>
+                        <h1>Payment Successful!</h1>
 
                         <p>
                             Your BookVerse order has been successfully created.
@@ -955,15 +585,11 @@ $order_date = date(
 
                         <div class="order-info-box">
 
-                            <span>
-                                Order Number
-                            </span>
+                            <span>Order Number</span>
 
                             <strong>
                                 <?php
-                                echo htmlspecialchars(
-                                    $order['order_number']
-                                );
+                                echo htmlspecialchars($order['order_number']);
                                 ?>
                             </strong>
 
@@ -971,61 +597,119 @@ $order_date = date(
 
                         <div class="order-info-box">
 
-                            <span>
-                                Order Date
-                            </span>
+                            <span>Order Date</span>
 
                             <strong>
-                                <?php
-                                echo htmlspecialchars(
-                                    $order_date
-                                );
-                                ?>
+                                <?php echo htmlspecialchars($order_date); ?>
                             </strong>
 
                         </div>
 
                         <div class="order-info-box">
 
-                            <span>
-                                Payment Method
-                            </span>
+                            <span>Payment Method</span>
 
                             <strong>
-                                <?php
-                                echo htmlspecialchars(
-                                    $payment_label
-                                );
-                                ?>
+                                <?php echo htmlspecialchars($payment_label); ?>
                             </strong>
 
                         </div>
 
                         <div class="order-info-box">
 
-                            <span>
-                                Order Status
-                            </span>
+                            <span>Order Status</span>
 
                             <strong>
-                                <?php
-                                echo htmlspecialchars(
-                                    $order['status']
-                                );
-                                ?>
+                                <?php echo htmlspecialchars($order['status']); ?>
                             </strong>
 
                         </div>
 
                     </div>
 
-                    <!-- Receipt -->
+                    <!-- ================= DIGITAL ORDER RECEIPT ================= -->
 
                     <div class="receipt-section">
 
-                        <h3>
-                            Order Receipt
-                        </h3>
+                        <!-- BookVerse Branding -->
+
+                        <div class="receipt-brand">
+
+                            <img
+                                src="assets/img/hugeicons_book-open-02.png"
+                                alt="BookVerse Logo">
+
+                            <div>
+
+                                <h2>BookVerse</h2>
+
+                                <p>Every Book Has a Story</p>
+
+                            </div>
+
+                        </div>
+
+                        <!-- Receipt Heading -->
+
+                        <div class="receipt-heading">
+
+                            <div>
+
+                                <span>BOOKVERSE INVOICE</span>
+
+                                <h3>Digital Order Receipt</h3>
+
+                                <p>
+                                    Thank you for shopping with BookVerse.
+                                </p>
+
+                            </div>
+
+                            <div>
+
+                                <i class="fa-solid fa-circle-check"></i>
+
+                                Order Created
+
+                            </div>
+
+                        </div>
+
+                        <!-- Order Number -->
+
+                        <div class="receipt-order-number">
+
+                            <span>ORDER NUMBER</span>
+
+                            <strong>
+                                <?php
+                                echo htmlspecialchars($order['order_number']);
+                                ?>
+                            </strong>
+
+                        </div>
+
+                        <!-- QR Code -->
+
+                        <div class="receipt-qr-section">
+
+                            <div id="orderQRCode"></div>
+
+                            <div>
+
+                                <strong>Order Reference QR</strong>
+
+                                <p>
+                                    Scan this QR Code to identify your BookVerse order.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <!-- Order Details -->
+
+                        <h3>Order Details</h3>
 
                         <div class="receipt-items">
 
@@ -1037,16 +721,23 @@ $order_date = date(
 
                                         <strong>
                                             <?php
-                                            echo htmlspecialchars(
-                                                $item['title']
-                                            );
+                                            echo htmlspecialchars($item['title']);
                                             ?>
                                         </strong>
 
                                         <span>
                                             <?php
-                                            echo htmlspecialchars(
-                                                $item['author']
+                                            echo htmlspecialchars($item['author']);
+                                            ?>
+                                        </span>
+
+                                        <span>
+                                            Harga satuan: Rp<?php
+                                            echo number_format(
+                                                $item['price'],
+                                                0,
+                                                ',',
+                                                '.'
                                             );
                                             ?>
                                         </span>
@@ -1056,7 +747,7 @@ $order_date = date(
                                     <div class="receipt-item-quantity">
 
                                         <?php
-                                        echo $item['quantity'];
+                                        echo (int) $item['quantity'];
                                         ?>
                                         ×
 
@@ -1081,16 +772,15 @@ $order_date = date(
 
                         </div>
 
+                        <!-- Payment Summary -->
+
                         <div class="receipt-total">
 
                             <div class="receipt-total-row">
 
-                                <span>
-                                    Subtotal
-                                </span>
+                                <span>Subtotal</span>
 
                                 <strong>
-
                                     Rp<?php
                                     echo number_format(
                                         $order['total_price'],
@@ -1099,31 +789,23 @@ $order_date = date(
                                         '.'
                                     );
                                     ?>
-
                                 </strong>
 
                             </div>
 
                             <div class="receipt-total-row">
 
-                                <span>
-                                    Delivery
-                                </span>
+                                <span>Delivery</span>
 
-                                <strong>
-                                    Free
-                                </strong>
+                                <strong>Free</strong>
 
                             </div>
 
                             <div class="receipt-total-row receipt-grand-total">
 
-                                <span>
-                                    Total Payment
-                                </span>
+                                <span>Total Payment</span>
 
                                 <strong>
-
                                     Rp<?php
                                     echo number_format(
                                         $order['total_price'],
@@ -1132,7 +814,6 @@ $order_date = date(
                                         '.'
                                     );
                                     ?>
-
                                 </strong>
 
                             </div>
@@ -1141,13 +822,11 @@ $order_date = date(
 
                     </div>
 
-                    <!-- Shipping Information -->
+                    <!-- ================= SHIPPING INFORMATION ================= -->
 
                     <div class="shipping-section">
 
-                        <h3>
-                            Shipping Information
-                        </h3>
+                        <h3>Shipping Information</h3>
 
                         <div class="shipping-row">
 
@@ -1157,9 +836,7 @@ $order_date = date(
 
                             <span class="shipping-value">
                                 <?php
-                                echo htmlspecialchars(
-                                    $order['recipient_name']
-                                );
+                                echo htmlspecialchars($order['recipient_name']);
                                 ?>
                             </span>
 
@@ -1173,9 +850,7 @@ $order_date = date(
 
                             <span class="shipping-value">
                                 <?php
-                                echo htmlspecialchars(
-                                    $order['phone']
-                                );
+                                echo htmlspecialchars($order['phone']);
                                 ?>
                             </span>
 
@@ -1190,9 +865,7 @@ $order_date = date(
                             <span class="shipping-value">
                                 <?php
                                 echo nl2br(
-                                    htmlspecialchars(
-                                        $order['address']
-                                    )
+                                    htmlspecialchars($order['address'])
                                 );
                                 ?>
                             </span>
@@ -1204,6 +877,17 @@ $order_date = date(
                     <!-- Actions -->
 
                     <div class="success-actions">
+
+                        <button
+                            type="button"
+                            onclick="window.print()"
+                            class="success-action-btn">
+
+                            <i class="fa-solid fa-print"></i>
+
+                            Print / Save PDF
+
+                        </button>
 
                         <a
                             href="orders.php"
@@ -1261,9 +945,7 @@ $order_date = date(
                         src="assets/img/hugeicons_book-open-02.png"
                         alt="BookVerse">
 
-                    <h2>
-                        BookVerse
-                    </h2>
+                    <h2>BookVerse</h2>
 
                     <p>
                         Every Book Has a Story.
@@ -1274,35 +956,14 @@ $order_date = date(
 
                 <div class="footer-links">
 
-                    <h3>
-                        Quick Links
-                    </h3>
+                    <h3>Quick Links</h3>
 
                     <ul>
 
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Books
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Categories
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                About
-                            </a>
-                        </li>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="books.php">Books</a></li>
+                        <li><a href="categories.php">Categories</a></li>
+                        <li><a href="about.php">About</a></li>
 
                     </ul>
 
@@ -1310,21 +971,13 @@ $order_date = date(
 
                 <div class="footer-contact">
 
-                    <h3>
-                        Contact
-                    </h3>
+                    <h3>Contact</h3>
 
-                    <p>
-                        Email : info@bookverse.com
-                    </p>
+                    <p>Email : info@bookverse.com</p>
 
-                    <p>
-                        Phone : +62 812 3456 7890
-                    </p>
+                    <p>Phone : +62 812 3456 7890</p>
 
-                    <p>
-                        Jakarta, Indonesia
-                    </p>
+                    <p>Jakarta, Indonesia</p>
 
                 </div>
 
@@ -1341,6 +994,39 @@ $order_date = date(
         </div>
 
     </footer>
+
+    <!-- QR Code Generator -->
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const qrContainer = document.getElementById("orderQRCode");
+
+        const orderNumber = <?php
+            echo json_encode(
+                $order['order_number'],
+                JSON_HEX_TAG |
+                JSON_HEX_APOS |
+                JSON_HEX_QUOT |
+                JSON_HEX_AMP
+            );
+        ?>;
+
+        if (qrContainer && window.QRCode) {
+
+            new QRCode(qrContainer, {
+                text: orderNumber,
+                width: 110,
+                height: 110,
+                colorDark: "#292333",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+        }
+
+    });
+    </script>
 
     <script src="assets/js/script.js"></script>
 

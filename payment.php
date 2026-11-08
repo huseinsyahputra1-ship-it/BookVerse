@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -42,18 +43,20 @@ foreach ($cart as $item) {
 
 /*
 |--------------------------------------------------------------------------
-| Ambil Data Checkout
+| Ambil Data Checkout Dari Session
 |--------------------------------------------------------------------------
 */
 
-$recipient_name = $_POST['recipient_name'] ?? '';
-$phone = $_POST['phone'] ?? '';
-$address = $_POST['address'] ?? '';
-$payment_method = $_POST['payment_method'] ?? 'bank_transfer';
+$checkout = $_SESSION['checkout'] ?? [];
+
+$recipient_name = trim($checkout['recipient_name'] ?? '');
+$phone = trim($checkout['phone'] ?? '');
+$address = trim($checkout['address'] ?? '');
+$payment_method = $checkout['payment_method'] ?? '';
 
 /*
 |--------------------------------------------------------------------------
-| Validasi Metode Pembayaran
+| Validasi Data Checkout
 |--------------------------------------------------------------------------
 */
 
@@ -63,26 +66,23 @@ $allowed_payment_methods = [
     'cod'
 ];
 
-if (!in_array($payment_method, $allowed_payment_methods, true)) {
-    $payment_method = 'bank_transfer';
+if (
+    $recipient_name === '' ||
+    $phone === '' ||
+    $address === '' ||
+    !in_array($payment_method, $allowed_payment_methods, true)
+) {
+    header("Location: checkout.php");
+    exit;
 }
 
 /*
 |--------------------------------------------------------------------------
-| Simpan Data Checkout ke Session
+| Simpan Total Ke Session
 |--------------------------------------------------------------------------
-|
-| Data ini akan digunakan pada tahap pembuatan order.
-|
 */
 
-$_SESSION['checkout'] = [
-    'recipient_name' => trim($recipient_name),
-    'phone'          => trim($phone),
-    'address'        => trim($address),
-    'payment_method' => $payment_method,
-    'total'          => $total
-];
+$_SESSION['checkout']['total'] = $total;
 
 /*
 |--------------------------------------------------------------------------
@@ -467,18 +467,18 @@ $current_payment = $payment_details[$payment_method];
 
                             <div class="selected-payment-icon">
 
-                                <i class="fa-solid <?php echo $current_payment['icon']; ?>"></i>
+                                <i class="fa-solid <?php echo htmlspecialchars($current_payment['icon']); ?>"></i>
 
                             </div>
 
                             <div class="selected-payment-info">
 
                                 <strong>
-                                    <?php echo $current_payment['name']; ?>
+                                    <?php echo htmlspecialchars($current_payment['name']); ?>
                                 </strong>
 
                                 <span>
-                                    <?php echo $current_payment['description']; ?>
+                                    <?php echo htmlspecialchars($current_payment['description']); ?>
                                 </span>
 
                             </div>
@@ -753,7 +753,7 @@ $current_payment = $payment_details[$payment_method];
                                         </strong>
 
                                         <span>
-                                            <?php echo $item['quantity']; ?>
+                                            <?php echo (int) $item['quantity']; ?>
                                             ×
                                             Rp<?php echo number_format(
                                                 $item['price'],

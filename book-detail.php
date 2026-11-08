@@ -114,20 +114,20 @@ $book_image = !empty($book['image'])
 
     <?php if (isset($_GET['added']) && $_GET['added'] === 'success'): ?>
 
-       <div class="cart-toast">
+        <div class="cart-toast">
 
-           <i class="fa-solid fa-circle-check"></i>
+            <i class="fa-solid fa-circle-check"></i>
 
-           <span>
-               Book added to your cart successfully!
-           </span>
+            <span>
+                Book added to your cart successfully!
+            </span>
 
         </div>
 
-    <?php endif; ?>                                                        
-                                           
+    <?php endif; ?>
+
     <!-- ================= HEADER ================= -->
-                                                                                     
+
     <header class="header">
 
         <div class="container">
@@ -451,21 +451,21 @@ $book_image = !empty($book['image'])
 
                             <i class="fa-solid fa-cart-shopping"></i>
 
-                            Tambah ke Keranjang
+                            Add to Cart
 
                         </a>
 
                         <!-- Buy Now -->
 
-                        <button
-                            type="button"
+                        <a
+                            href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=checkout&buy_now=1"
                             class="book-detail-buy">
 
                             <i class="fa-solid fa-bag-shopping"></i>
 
-                            Beli Sekarang
+                            Buy Now
 
-                        </button>
+                        </a>
 
                     </div>
 

@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -46,6 +47,7 @@ $orderStmt = mysqli_prepare(
         recipient_name,
         phone,
         address,
+        payment_method,
         order_number,
         total_price,
         status,
@@ -172,6 +174,22 @@ $orderDate = date(
 
 $fullname = $_SESSION['fullname'] ?? '';
 $email = $_SESSION['email'] ?? '';
+
+/*
+|--------------------------------------------------------------------------
+| Format Payment Method
+|--------------------------------------------------------------------------
+*/
+
+$paymentLabels = [
+    'bank_transfer' => 'Bank Transfer',
+    'e_wallet' => 'E-Wallet',
+    'cod' => 'Cash on Delivery'
+];
+
+$paymentMethod = $paymentLabels[
+    $order['payment_method'] ?? ''
+] ?? 'Unknown';
 
 ?>
 
@@ -1139,7 +1157,11 @@ $email = $_SESSION['email'] ?? '';
                                 </span>
 
                                 <strong>
-                                    Payment Simulation
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $paymentMethod
+                                    );
+                                    ?>
                                 </strong>
 
                             </div>
@@ -1192,6 +1214,18 @@ $email = $_SESSION['email'] ?? '';
                             </div>
 
                             <div class="order-summary-actions">
+
+                                <!-- VIEW RECEIPT -->
+
+                                <a
+                                    href="receipt.php?id=<?php echo (int) $order['id']; ?>"
+                                    class="order-summary-btn order-summary-btn-primary">
+
+                                    <i class="fa-solid fa-receipt"></i>
+
+                                    View Receipt
+
+                                </a>
 
                                 <a
                                     href="orders.php"

@@ -1,4 +1,3 @@
-
 <?php
 
 session_start();
@@ -48,10 +47,15 @@ $query = mysqli_query(
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <!-- CSS -->
+    <!-- CSS Utama -->
     <link
         rel="stylesheet"
         href="assets/css/style.css">
+
+    <!-- CSS Khusus Categories -->
+    <link
+        rel="stylesheet"
+        href="assets/css/categories.css">
 
 </head>
 
@@ -315,17 +319,90 @@ $query = mysqli_query(
 
                     <?php while ($category = mysqli_fetch_assoc($query)): ?>
 
+                        <?php
+
+                        $categoryName = strtolower(
+                            trim($category['category'])
+                        );
+
+                        // Menyamakan format nama kategori
+                        $categoryName = str_replace(
+                            ' ',
+                            '-',
+                            $categoryName
+                        );
+
+                        // Logo dan ikon kategori
+                        $categoryIcons = [
+
+                            'self-development' => [
+                                'image' => 'assets/img/mdi_brain.png',
+                                'class' => 'icon-self-development'
+                            ],
+
+                            'novel' => [
+                                'image' => 'assets/img/tabler_book.png',
+                                'class' => 'icon-fiction'
+                            ],
+
+                            'business' => [
+                                'image' => 'assets/img/streamline_office-building-1.png',
+                                'class' => 'icon-business'
+                            ],
+
+                            'education' => [
+                                'image' => 'assets/img/qlementine-icons_book-16.png',
+                                'class' => 'icon-education'
+                            ],
+
+                            'comics' => [
+                                'image' => 'assets/img/hugeicons_book-open-02.png',
+                                'class' => 'icon-comics'
+                            ],
+
+                            'fantasy' => [
+                                'icon' => 'fa-wand-magic-sparkles',
+                                'class' => 'icon-fantasy'
+                            ],
+
+                            'fiction' => [
+                                'icon' => 'fa-book-open',
+                                'class' => 'icon-fiction'
+                            ],
+
+                            'romance' => [
+                                'icon' => 'fa-heart',
+                                'class' => 'icon-romance'
+                            ]
+
+                        ];
+
+                        $categoryStyle = $categoryIcons[$categoryName] ?? [
+                            'icon' => 'fa-book-open',
+                            'class' => 'icon-default'
+                        ];
+
+                        ?>
+
+
                         <a
                             href="books.php?category=<?php echo urlencode($category['category']); ?>"
-                            class="category-card"
-                            style="display:block; text-decoration:none; color:inherit;">
+                            class="category-card">
 
                             <!-- Category Icon -->
 
-                            <i
-                                class="fa-solid fa-book-open"
-                                style="font-size:60px; margin-bottom:22px; color:#6c3ef4;">
-                            </i>
+                            <?php if (isset($categoryStyle['image'])): ?>
+
+                                <img
+                                    src="<?php echo htmlspecialchars($categoryStyle['image']); ?>"
+                                    alt="<?php echo htmlspecialchars($category['category']); ?>"
+                                    class="category-icon">
+
+                            <?php else: ?>
+
+                                <i class="fa-solid <?php echo $categoryStyle['icon']; ?> category-icon <?php echo $categoryStyle['class']; ?>"></i>
+
+                            <?php endif; ?>
 
 
                             <!-- Category Name -->
@@ -438,7 +515,7 @@ $query = mysqli_query(
                         </li>
 
                         <li>
-                            <a href="#">
+                            <a href="about.php">
                                 About
                             </a>
                         </li>

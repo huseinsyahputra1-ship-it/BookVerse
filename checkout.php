@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -12,6 +13,46 @@ include "config/database.php";
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Proses Data Checkout
+|--------------------------------------------------------------------------
+*/
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $recipient_name = trim($_POST['recipient_name'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+    $payment_method = $_POST['payment_method'] ?? '';
+
+    $allowed_payment_methods = [
+        'bank_transfer',
+        'e_wallet',
+        'cod'
+    ];
+
+    if (
+        $recipient_name === '' ||
+        $phone === '' ||
+        $address === '' ||
+        !in_array($payment_method, $allowed_payment_methods, true)
+    ) {
+        header("Location: checkout.php");
+        exit;
+    }
+
+    $_SESSION['checkout'] = [
+        'recipient_name' => $recipient_name,
+        'phone' => $phone,
+        'address' => $address,
+        'payment_method' => $payment_method
+    ];
+
+    header("Location: payment.php");
     exit;
 }
 
@@ -131,35 +172,11 @@ $email = $_SESSION['email'] ?? '';
 
                     <ul class="menu">
 
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Books
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Categories
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                About
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Contact
-                            </a>
-                        </li>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="#">Books</a></li>
+                        <li><a href="#">Categories</a></li>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Contact</a></li>
 
                     </ul>
 
@@ -240,23 +257,13 @@ $email = $_SESSION['email'] ?? '';
                             <hr>
 
                             <a href="profile.php">
-
                                 <i class="fa-solid fa-user"></i>
-
-                                <span>
-                                    Profile
-                                </span>
-
+                                <span>Profile</span>
                             </a>
 
                             <a href="orders.php">
-
                                 <i class="fa-solid fa-box"></i>
-
-                                <span>
-                                    Pesanan Saya
-                                </span>
-
+                                <span>Pesanan Saya</span>
                             </a>
 
                             <hr>
@@ -266,10 +273,7 @@ $email = $_SESSION['email'] ?? '';
                                 class="logout-link">
 
                                 <i class="fa-solid fa-right-from-bracket"></i>
-
-                                <span>
-                                    Logout
-                                </span>
+                                <span>Logout</span>
 
                             </a>
 
@@ -291,15 +295,11 @@ $email = $_SESSION['email'] ?? '';
 
         <div class="container">
 
-            <!-- Checkout Header -->
-
             <div class="checkout-page-header">
 
                 <div class="section-title">
 
-                    <h2>
-                        Checkout
-                    </h2>
+                    <h2>Checkout</h2>
 
                     <p>
                         Complete your order and payment details.
@@ -312,7 +312,6 @@ $email = $_SESSION['email'] ?? '';
                     class="cart-back-btn">
 
                     <i class="fa-solid fa-arrow-left"></i>
-
                     Kembali ke Cart
 
                 </a>
@@ -322,14 +321,12 @@ $email = $_SESSION['email'] ?? '';
             <!-- ================= CHECKOUT FORM ================= -->
 
             <form
-                action="payment.php"
+                action="checkout.php"
                 method="POST">
-
-                <!-- Checkout Layout -->
 
                 <div class="checkout-layout">
 
-                    <!-- ================= CUSTOMER INFORMATION ================= -->
+                    <!-- CUSTOMER INFORMATION -->
 
                     <div class="checkout-main">
 
@@ -339,15 +336,11 @@ $email = $_SESSION['email'] ?? '';
 
                                 <div>
 
-                                    <span class="checkout-step">
-                                        01
-                                    </span>
+                                    <span class="checkout-step">01</span>
 
                                     <div>
 
-                                        <h3>
-                                            Informasi Pengiriman
-                                        </h3>
+                                        <h3>Informasi Pengiriman</h3>
 
                                         <p>
                                             Masukkan data penerima pesanan.
@@ -411,7 +404,7 @@ $email = $_SESSION['email'] ?? '';
 
                         </div>
 
-                        <!-- ================= PAYMENT METHOD ================= -->
+                        <!-- PAYMENT METHOD -->
 
                         <div class="checkout-card">
 
@@ -419,15 +412,11 @@ $email = $_SESSION['email'] ?? '';
 
                                 <div>
 
-                                    <span class="checkout-step">
-                                        02
-                                    </span>
+                                    <span class="checkout-step">02</span>
 
                                     <div>
 
-                                        <h3>
-                                            Metode Pembayaran
-                                        </h3>
+                                        <h3>Metode Pembayaran</h3>
 
                                         <p>
                                             Pilih metode pembayaran untuk pesanan.
@@ -447,23 +436,18 @@ $email = $_SESSION['email'] ?? '';
                                         type="radio"
                                         name="payment_method"
                                         value="bank_transfer"
-                                        checked>
+                                        checked
+                                        required>
 
                                     <div class="payment-icon">
-
                                         <i class="fa-solid fa-building-columns"></i>
-
                                     </div>
 
                                     <div class="payment-info">
 
-                                        <strong>
-                                            Bank Transfer
-                                        </strong>
+                                        <strong>Bank Transfer</strong>
 
-                                        <span>
-                                            Pembayaran simulasi
-                                        </span>
+                                        <span>Pembayaran simulasi</span>
 
                                     </div>
 
@@ -479,20 +463,14 @@ $email = $_SESSION['email'] ?? '';
                                         value="e_wallet">
 
                                     <div class="payment-icon">
-
                                         <i class="fa-solid fa-wallet"></i>
-
                                     </div>
 
                                     <div class="payment-info">
 
-                                        <strong>
-                                            E-Wallet
-                                        </strong>
+                                        <strong>E-Wallet</strong>
 
-                                        <span>
-                                            Pembayaran simulasi
-                                        </span>
+                                        <span>Pembayaran simulasi</span>
 
                                     </div>
 
@@ -508,20 +486,14 @@ $email = $_SESSION['email'] ?? '';
                                         value="cod">
 
                                     <div class="payment-icon">
-
                                         <i class="fa-solid fa-truck"></i>
-
                                     </div>
 
                                     <div class="payment-info">
 
-                                        <strong>
-                                            Cash on Delivery
-                                        </strong>
+                                        <strong>Cash on Delivery</strong>
 
-                                        <span>
-                                            Bayar saat pesanan diterima
-                                        </span>
+                                        <span>Bayar saat pesanan diterima</span>
 
                                     </div>
 
@@ -535,15 +507,13 @@ $email = $_SESSION['email'] ?? '';
 
                     </div>
 
-                    <!-- ================= ORDER SUMMARY ================= -->
+                    <!-- ORDER SUMMARY -->
 
                     <aside class="checkout-summary">
 
                         <div class="checkout-summary-card">
 
-                            <h3>
-                                Order Summary
-                            </h3>
+                            <h3>Order Summary</h3>
 
                             <div class="checkout-items">
 
@@ -571,6 +541,7 @@ $email = $_SESSION['email'] ?? '';
                                             </h4>
 
                                             <span>
+
                                                 <?php echo $item['quantity']; ?> ×
                                                 Rp<?php echo number_format(
                                                     $item['price'],
@@ -578,6 +549,7 @@ $email = $_SESSION['email'] ?? '';
                                                     ',',
                                                     '.'
                                                 ); ?>
+
                                             </span>
 
                                         </div>
@@ -603,9 +575,7 @@ $email = $_SESSION['email'] ?? '';
 
                             <div class="summary-row">
 
-                                <span>
-                                    Subtotal
-                                </span>
+                                <span>Subtotal</span>
 
                                 <strong>
 
@@ -622,13 +592,9 @@ $email = $_SESSION['email'] ?? '';
 
                             <div class="summary-row">
 
-                                <span>
-                                    Delivery
-                                </span>
+                                <span>Delivery</span>
 
-                                <strong>
-                                    Free
-                                </strong>
+                                <strong>Free</strong>
 
                             </div>
 
@@ -636,9 +602,7 @@ $email = $_SESSION['email'] ?? '';
 
                             <div class="summary-total">
 
-                                <span>
-                                    Total
-                                </span>
+                                <span>Total</span>
 
                                 <strong>
 
@@ -698,9 +662,7 @@ $email = $_SESSION['email'] ?? '';
                         src="assets/img/hugeicons_book-open-02.png"
                         alt="BookVerse">
 
-                    <h2>
-                        BookVerse
-                    </h2>
+                    <h2>BookVerse</h2>
 
                     <p>
                         Every Book Has a Story.
@@ -711,35 +673,14 @@ $email = $_SESSION['email'] ?? '';
 
                 <div class="footer-links">
 
-                    <h3>
-                        Quick Links
-                    </h3>
+                    <h3>Quick Links</h3>
 
                     <ul>
 
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Books
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Categories
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                About
-                            </a>
-                        </li>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="#">Books</a></li>
+                        <li><a href="#">Categories</a></li>
+                        <li><a href="#">About</a></li>
 
                     </ul>
 
@@ -747,21 +688,13 @@ $email = $_SESSION['email'] ?? '';
 
                 <div class="footer-contact">
 
-                    <h3>
-                        Contact
-                    </h3>
+                    <h3>Contact</h3>
 
-                    <p>
-                        Email : info@bookverse.com
-                    </p>
+                    <p>Email : info@bookverse.com</p>
 
-                    <p>
-                        Phone : +62 812 3456 7890
-                    </p>
+                    <p>Phone : +62 812 3456 7890</p>
 
-                    <p>
-                        Jakarta, Indonesia
-                    </p>
+                    <p>Jakarta, Indonesia</p>
 
                 </div>
 
