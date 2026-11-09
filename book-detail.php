@@ -64,6 +64,8 @@ $book_image = !empty($book['image'])
     ? htmlspecialchars($book['image'])
     : "assets/img/hugeicons_book-open-02.png";
 
+$book_stock = (int) ($book['stock'] ?? 0);
+
 ?>
 
 <!DOCTYPE html>
@@ -107,6 +109,12 @@ $book_image = !empty($book['image'])
     <link
         rel="stylesheet"
         href="assets/css/style.css">
+
+    <!-- Stock Indicator CSS -->
+
+    <link
+        rel="stylesheet"
+        href="assets/css/stock-indicator.css">
 
 </head>
 
@@ -366,6 +374,16 @@ $book_image = !empty($book['image'])
 
             <section class="book-detail-card">
 
+                <!-- Book Detail Stock Indicator -->
+
+                <div class="detail-stock-indicator <?php echo $book_stock > 0 ? 'available' : 'sold-out'; ?>">
+
+                    <span class="detail-stock-dot"></span>
+
+                    <?php echo $book_stock > 0 ? 'In Stock' : 'Out of Stock'; ?>
+
+                </div>
+
                 <!-- Book Cover -->
 
                 <div class="book-detail-image">
@@ -414,6 +432,22 @@ $book_image = !empty($book['image'])
 
                     </div>
 
+                    <!-- Stock Status -->
+
+                    <?php if ($book_stock > 0 && $book_stock <= 5): ?>
+
+                        <p class="stock-label low">
+                            Only <?php echo $book_stock; ?> left
+                        </p>
+
+                    <?php elseif ($book_stock <= 0): ?>
+
+                        <p class="stock-label empty">
+                            Out of Stock
+                        </p>
+
+                    <?php endif; ?>
+
                     <div class="book-detail-divider"></div>
 
                     <div class="book-detail-description">
@@ -443,29 +477,59 @@ $book_image = !empty($book['image'])
 
                     <div class="book-detail-action">
 
-                        <!-- Add to Cart -->
+                        <?php if ($book_stock > 0): ?>
 
-                        <a
-                            href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=detail"
-                            class="book-detail-cart">
+                            <!-- Add to Cart -->
 
-                            <i class="fa-solid fa-cart-shopping"></i>
+                            <a
+                                href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=detail"
+                                class="book-detail-cart">
 
-                            Add to Cart
+                                <i class="fa-solid fa-cart-shopping"></i>
 
-                        </a>
+                                Add to Cart
 
-                        <!-- Buy Now -->
+                            </a>
 
-                        <a
-                            href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=checkout&buy_now=1"
-                            class="book-detail-buy">
+                            <!-- Buy Now -->
 
-                            <i class="fa-solid fa-bag-shopping"></i>
+                            <a
+                                href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=checkout&buy_now=1"
+                                class="book-detail-buy">
 
-                            Buy Now
+                                <i class="fa-solid fa-bag-shopping"></i>
 
-                        </a>
+                                Buy Now
+
+                            </a>
+
+                        <?php else: ?>
+
+                            <!-- Out of Stock -->
+
+                            <a
+                                href="javascript:void(0)"
+                                class="book-detail-cart disabled"
+                                aria-disabled="true">
+
+                                <i class="fa-solid fa-ban"></i>
+
+                                Out of Stock
+
+                            </a>
+
+                            <a
+                                href="javascript:void(0)"
+                                class="book-detail-buy disabled"
+                                aria-disabled="true">
+
+                                <i class="fa-solid fa-ban"></i>
+
+                                Out of Stock
+
+                            </a>
+
+                        <?php endif; ?>
 
                     </div>
 

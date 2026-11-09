@@ -1,3 +1,4 @@
+
 <?php
 session_start();
 
@@ -8,24 +9,17 @@ include "../config/database.php";
 // =========================================================
 
 if (!isset($_SESSION['user_id'])) {
-
     header("Location: ../login.php");
-
     exit();
-
 }
 
 if ($_SESSION['role'] !== 'admin') {
-
     echo "<script>
         alert('Akses ditolak! Halaman ini hanya untuk admin.');
         window.location='../index.php';
     </script>";
-
     exit();
-
 }
-
 
 // =========================================================
 // ADD BOOK PROCESS
@@ -38,10 +32,10 @@ if (isset($_POST['add_book'])) {
     $price = trim($_POST['price']);
     $category = trim($_POST['category']);
     $description = trim($_POST['description']);
+    $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+    $stock = isset($_POST['stock']) ? (int) $_POST['stock'] : 0;
 
-    // -----------------------------------------------------
     // VALIDATION
-    // -----------------------------------------------------
 
     if (
         empty($title) ||
@@ -50,207 +44,212 @@ if (isset($_POST['add_book'])) {
         empty($category) ||
         empty($description)
     ) {
-
         echo "<script>
             alert('Semua data buku wajib diisi!');
             window.history.back();
         </script>";
-
         exit();
-
     }
 
+    // STOCK VALIDATION
 
-    // -----------------------------------------------------
+    if ($stock < 0) {
+        echo "<script>
+            alert('Jumlah stok tidak boleh kurang dari 0!');
+            window.history.back();
+        </script>";
+        exit();
+    }
+
     // IMAGE UPLOAD
-    // -----------------------------------------------------
 
     if (!isset($_FILES['image']) || $_FILES['image']['error'] !== 0) {
-
         echo "<script>
             alert('Cover buku wajib diupload!');
             window.history.back();
         </script>";
-
         exit();
-
     }
 
     $image = $_FILES['image'];
-
     $imageName = $image['name'];
     $imageTmp = $image['tmp_name'];
     $imageSize = $image['size'];
 
-    $allowedExtensions = [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp'
-    ];
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 
     $imageExtension = strtolower(
         pathinfo($imageName, PATHINFO_EXTENSION)
     );
 
-
-    // -----------------------------------------------------
     // CHECK IMAGE EXTENSION
-    // -----------------------------------------------------
 
-    if (!in_array($imageExtension, $allowedExtensions)) {
-
+    if (!in_array($imageExtension, $allowedExtensions, true)) {
         echo "<script>
             alert('Format gambar tidak valid! Gunakan JPG, JPEG, PNG, atau WEBP.');
             window.history.back();
         </script>";
-
         exit();
-
     }
 
-
-    // -----------------------------------------------------
-    // CHECK IMAGE SIZE
-    // Maximum 2 MB
-    // -----------------------------------------------------
+    // CHECK IMAGE SIZE (MAXIMUM 2 MB)
 
     if ($imageSize > 2 * 1024 * 1024) {
-
         echo "<script>
             alert('Ukuran cover terlalu besar! Maksimal 2 MB.');
             window.history.back();
         </script>";
-
         exit();
-
     }
 
-
-    // -----------------------------------------------------
     // UPLOAD DIRECTORY
-    // -----------------------------------------------------
 
     $uploadDirectory = "../assets/img/books/";
 
-
     if (!is_dir($uploadDirectory)) {
-
-        mkdir(
-            $uploadDirectory,
-            0777,
-            true
-        );
-
+        mkdir($uploadDirectory, 0777, true);
     }
 
-
-    // -----------------------------------------------------
     // GENERATE UNIQUE IMAGE NAME
-    // -----------------------------------------------------
 
-    $newImageName = uniqid(
-        'book_',
-        true
-    ) . '.' . $imageExtension;
-
-
+    $newImageName = uniqid('book_', true) . '.' . $imageExtension;
     $imagePath = $uploadDirectory . $newImageName;
 
-
-    // -----------------------------------------------------
     // MOVE IMAGE
-    // -----------------------------------------------------
 
     if (!move_uploaded_file($imageTmp, $imagePath)) {
-
         echo "<script>
             alert('Cover buku gagal diupload!');
             window.history.back();
         </script>";
-
         exit();
-
     }
 
-
-    // -----------------------------------------------------
     // DATABASE IMAGE PATH
-    // -----------------------------------------------------
 
-    $databaseImagePath =
-        "assets/img/books/" . $newImageName;
+    $databaseImagePath = "assets/img/books/" . $newImageName;
 
+       // INSERT BOOK + STOCK HISTORY
 
-    // -----------------------------------------------------
-    // INSERT BOOK
-    // -----------------------------------------------------
+    mysqli_begin_transaction($conn);
 
-    $query = mysqli_prepare(
-        $conn,
-        "INSERT INTO books
-        (
-            title,
-            author,
-            price,
-            image,
-            category,
-            description
-        )
-        VALUES
-        (
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?
-        )"
-    );
+    try {
 
+        $query = mysqli_prepare(
+            $conn,
+            "INSERT INTO books
+            (
+                title,
+                author,
+                price,
+                image,
+                category,
+                description,
+                is_featured,
+                stock
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        );
 
-    mysqli_stmt_bind_param(
-        $query,
-        "ssdsss",
-        $title,
-        $author,
-        $price,
-        $databaseImagePath,
-        $category,
-        $description
-    );
+        if (!$query) {
+            throw new Exception("Gagal menyiapkan data buku.");
+        }
 
+        mysqli_stmt_bind_param(
+            $query,
+            "ssdsssii",
+            $title,
+            $author,
+            $price,
+            $databaseImagePath,
+            $category,
+            $description,
+            $is_featured,
+            $stock
+        );
 
-    if (mysqli_stmt_execute($query)) {
+        if (!mysqli_stmt_execute($query)) {
+            throw new Exception("Gagal menambahkan buku.");
+        }
+
+        // Ambil ID buku yang baru ditambahkan
+        $book_id = mysqli_insert_id($conn);
+
+        mysqli_stmt_close($query);
+
+        // Catat stok awal jika lebih dari 0
+        if ($stock > 0) {
+
+            $activity_type = "Stock In";
+            $stock_before = 0;
+            $stock_after = $stock;
+            $notes = "Initial stock saat buku ditambahkan";
+            $admin_id = (int) $_SESSION['user_id'];
+
+            $history_stmt = mysqli_prepare(
+                $conn,
+                "INSERT INTO stock_history
+                (
+                    book_id,
+                    user_id,
+                    activity_type,
+                    quantity,
+                    stock_before,
+                    stock_after,
+                    notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)"
+            );
+
+            if (!$history_stmt) {
+                throw new Exception("Gagal menyiapkan riwayat stok.");
+            }
+
+            mysqli_stmt_bind_param(
+                $history_stmt,
+                "iisiiis",
+                $book_id,
+                $admin_id,
+                $activity_type,
+                $stock,
+                $stock_before,
+                $stock_after,
+                $notes
+            );
+
+            if (!mysqli_stmt_execute($history_stmt)) {
+                throw new Exception("Gagal menyimpan riwayat stok.");
+            }
+
+            mysqli_stmt_close($history_stmt);
+        }
+
+        // Simpan seluruh perubahan
+        mysqli_commit($conn);
 
         echo "<script>
             alert('Buku berhasil ditambahkan!');
             window.location='books.php';
         </script>";
-
         exit();
 
+    } catch (Exception $e) {
+
+        mysqli_rollback($conn);
+
+        // Hapus gambar jika transaksi gagal
+        if (file_exists($imagePath)) {
+            unlink($imagePath);
+        }
+
+        echo "<script>
+            alert('Buku gagal ditambahkan: " .
+            addslashes($e->getMessage()) .
+            "');
+            window.history.back();
+        </script>";
+        exit();
     }
-
-
-    // -----------------------------------------------------
-    // CLEANUP IF DATABASE INSERT FAILS
-    // -----------------------------------------------------
-
-    if (file_exists($imagePath)) {
-
-        unlink($imagePath);
-
-    }
-
-    echo "<script>
-        alert('Buku gagal ditambahkan!');
-        window.history.back();
-    </script>";
-
-    exit();
-
-}
 
 ?>
 
@@ -298,9 +297,7 @@ if (isset($_POST['add_book'])) {
 
 <body>
 
-    <!-- =====================================================
-         ADMIN HEADER
-         ===================================================== -->
+    <!-- ADMIN HEADER -->
 
     <header class="admin-header">
 
@@ -315,26 +312,19 @@ if (isset($_POST['add_book'])) {
                     alt="BookVerse Logo">
 
                 <div>
-
                     <h2>BookVerse</h2>
-
                     <span>Admin Panel</span>
-
                 </div>
 
             </a>
 
         </div>
 
-
         <div class="admin-header-right">
 
             <span class="admin-welcome">
-
                 <i class="fa-solid fa-user-shield"></i>
-
                 <?php echo htmlspecialchars($_SESSION['fullname']); ?>
-
             </span>
 
             <a
@@ -342,7 +332,6 @@ if (isset($_POST['add_book'])) {
                 class="admin-logout">
 
                 <i class="fa-solid fa-right-from-bracket"></i>
-
                 Logout
 
             </a>
@@ -351,17 +340,11 @@ if (isset($_POST['add_book'])) {
 
     </header>
 
-
-    <!-- =====================================================
-         ADMIN LAYOUT
-         ===================================================== -->
+    <!-- ADMIN LAYOUT -->
 
     <div class="admin-layout">
 
-
-        <!-- =================================================
-             SIDEBAR
-             ================================================= -->
+        <!-- SIDEBAR -->
 
         <aside class="admin-sidebar">
 
@@ -372,46 +355,38 @@ if (isset($_POST['add_book'])) {
                     class="admin-nav-link">
 
                     <i class="fa-solid fa-chart-line"></i>
-
                     <span>Dashboard</span>
 
                 </a>
-
 
                 <a
                     href="books.php"
                     class="admin-nav-link active">
 
                     <i class="fa-solid fa-book"></i>
-
                     <span>Manage Books</span>
 
                 </a>
-
 
                 <a
                     href="orders.php"
                     class="admin-nav-link">
 
                     <i class="fa-solid fa-box"></i>
-
                     <span>Manage Orders</span>
 
                 </a>
-
 
                 <a
                     href="users.php"
                     class="admin-nav-link">
 
                     <i class="fa-solid fa-users"></i>
-
                     <span>Manage Users</span>
 
                 </a>
 
             </nav>
-
 
             <div class="admin-sidebar-bottom">
 
@@ -420,7 +395,6 @@ if (isset($_POST['add_book'])) {
                     class="admin-back-home">
 
                     <i class="fa-solid fa-arrow-left"></i>
-
                     <span>Back to Books</span>
 
                 </a>
@@ -429,10 +403,7 @@ if (isset($_POST['add_book'])) {
 
         </aside>
 
-
-        <!-- =================================================
-             MAIN CONTENT
-             ================================================= -->
+        <!-- MAIN CONTENT -->
 
         <main class="admin-main">
 
@@ -459,16 +430,13 @@ if (isset($_POST['add_book'])) {
                     class="admin-back-button">
 
                     <i class="fa-solid fa-arrow-left"></i>
-
                     Back to Books
+
                 </a>
 
             </div>
 
-
-            <!-- =================================================
-                 ADD BOOK FORM
-                 ================================================= -->
+            <!-- ADD BOOK FORM -->
 
             <section class="admin-form-section">
 
@@ -477,7 +445,6 @@ if (isset($_POST['add_book'])) {
                     method="POST"
                     enctype="multipart/form-data"
                     class="admin-book-form">
-
 
                     <!-- Book Cover -->
 
@@ -510,7 +477,6 @@ if (isset($_POST['add_book'])) {
 
                     </div>
 
-
                     <!-- Title -->
 
                     <div class="admin-form-group">
@@ -528,7 +494,6 @@ if (isset($_POST['add_book'])) {
 
                     </div>
 
-
                     <!-- Author -->
 
                     <div class="admin-form-group">
@@ -545,7 +510,6 @@ if (isset($_POST['add_book'])) {
                             required>
 
                     </div>
-
 
                     <!-- Price -->
 
@@ -565,6 +529,24 @@ if (isset($_POST['add_book'])) {
 
                     </div>
 
+                    <!-- Stock -->
+
+                    <div class="admin-form-group">
+
+                        <label for="stock">
+                            Book Stock
+                        </label>
+
+                        <input
+                            type="number"
+                            id="stock"
+                            name="stock"
+                            placeholder="Enter available stock"
+                            min="0"
+                            value="0"
+                            required>
+
+                    </div>
 
                     <!-- Category -->
 
@@ -583,7 +565,6 @@ if (isset($_POST['add_book'])) {
 
                     </div>
 
-
                     <!-- Description -->
 
                     <div class="admin-form-group">
@@ -601,6 +582,27 @@ if (isset($_POST['add_book'])) {
 
                     </div>
 
+                    <!-- Featured Book -->
+
+                    <div class="admin-form-group">
+
+                        <label>Featured Book</label>
+
+                        <div class="featured-checkbox">
+
+                            <input
+                                type="checkbox"
+                                name="is_featured"
+                                id="is_featured"
+                                value="1">
+
+                            <label for="is_featured">
+                                Display this book on the homepage
+                            </label>
+
+                        </div>
+
+                    </div>
 
                     <!-- Form Actions -->
 
@@ -614,14 +616,12 @@ if (isset($_POST['add_book'])) {
 
                         </a>
 
-
                         <button
                             type="submit"
                             name="add_book"
                             class="admin-form-submit">
 
                             <i class="fa-solid fa-plus"></i>
-
                             Add Book
 
                         </button>

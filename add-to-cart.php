@@ -25,7 +25,7 @@ $book_id = (int) $_GET['id'];
 
 $stmt = mysqli_prepare(
     $conn,
-    "SELECT id, title, author, price, image
+    "SELECT id, title, author, price, image, stock
      FROM books
      WHERE id = ?
      LIMIT 1"
@@ -58,6 +58,24 @@ if (!$book) {
 
 /*
 |--------------------------------------------------------------------------
+| Ambil Stok Buku
+|--------------------------------------------------------------------------
+*/
+
+$stock = (int) $book['stock'];
+
+/*
+|--------------------------------------------------------------------------
+| Buat Session Cart Jika Belum Ada
+|--------------------------------------------------------------------------
+*/
+
+if (!isset($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
+
+/*
+|--------------------------------------------------------------------------
 | Buy Now
 |--------------------------------------------------------------------------
 */
@@ -65,6 +83,12 @@ if (!$book) {
 $buy_now = isset($_GET['buy_now']) && $_GET['buy_now'] === '1';
 
 if ($buy_now) {
+
+    // Cek stok sebelum Buy Now
+    if ($stock <= 0) {
+        header("Location: book-detail.php?id=" . $book_id . "&stock=empty");
+        exit();
+    }
 
     // Kosongkan cart sebelumnya
     $_SESSION['cart'] = [];
@@ -86,20 +110,28 @@ if ($buy_now) {
 
 /*
 |--------------------------------------------------------------------------
-| Buat Session Cart Jika Belum Ada
-|--------------------------------------------------------------------------
-*/
-
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
-
-/*
-|--------------------------------------------------------------------------
 | Tambahkan Buku ke Cart
 |--------------------------------------------------------------------------
 */
 
+// Ambil jumlah buku yang sudah ada di cart
+$current_quantity = isset($_SESSION['cart'][$book_id])
+    ? (int) $_SESSION['cart'][$book_id]['quantity']
+    : 0;
+
+// Cek stok habis
+if ($stock <= 0) {
+    header("Location: book-detail.php?id=" . $book_id . "&stock=empty");
+    exit();
+}
+
+// Cek agar jumlah cart tidak melebihi stok
+if (($current_quantity + 1) > $stock) {
+    header("Location: book-detail.php?id=" . $book_id . "&stock=limit");
+    exit();
+}
+
+// Tambahkan jumlah jika buku sudah ada di cart
 if (isset($_SESSION['cart'][$book_id])) {
 
     $_SESSION['cart'][$book_id]['quantity']++;

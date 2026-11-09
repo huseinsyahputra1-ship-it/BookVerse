@@ -1,0 +1,139 @@
+
+.book-image-wrapper {
+    position: relative;
+    display: block;
+}
+
+.stock-light {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    z-index: 5;
+    border: 2px solid #fff;
+}
+
+.stock-light.available {
+    background: #22c55e;
+}
+
+.stock-light.sold-out {
+    background: #ef4444;
+}
+
+.stock-label {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+.stock-label.low {
+    color: #e59a18;
+}
+
+.stock-label.empty {
+    color: #e53935;
+}
+
+.book-action a.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* Book Detail Stock Indicator */
+
+.book-detail-image .book-image-wrapper {
+    position: relative;
+    display: block;
+}
+
+.book-detail-image .stock-light {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    z-index: 5;
+    border: 2px solid #fff;
+}
+
+.book-detail-action a.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* =========================================
+   BOOK DETAIL STOCK INDICATOR
+   ========================================= */
+
+.book-detail-card {
+    position: relative;
+}
+
+.detail-stock-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 10;
+}
+
+.detail-stock-indicator.available {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.detail-stock-indicator.sold-out {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.detail-stock-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.detail-stock-indicator.available .detail-stock-dot {
+    background: #22c55e;
+}
+
+.detail-stock-indicator.sold-out .detail-stock-dot {
+    background: #ef4444;
+}
+
+/* Stock Label */
+
+.stock-label {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+.stock-label.low {
+    color: #e59a18;
+}
+
+.stock-label.empty {
+    color: #e53935;
+}
+
+/* Disabled Buttons */
+
+.book-detail-action a.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}

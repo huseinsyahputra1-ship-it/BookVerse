@@ -1,4 +1,3 @@
-
 <?php
 
 session_start();
@@ -76,6 +75,11 @@ foreach ($cart as $item) {
     $quantity = (int) $item['quantity'];
     $price = (float) $item['price'];
 
+    if ($quantity <= 0) {
+        header("Location: cart.php");
+        exit;
+    }
+
     $total_price += $price * $quantity;
 }
 
@@ -118,6 +122,119 @@ if (!isset($_SESSION['last_order'])) {
     mysqli_begin_transaction($conn);
 
     try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Kunci dan Periksa Stok Buku
+        |--------------------------------------------------------------------------
+        */
+
+        // Urutkan ID buku agar penguncian lebih konsisten
+        $book_ids = array_map('intval', array_keys($cart));
+        sort($book_ids);
+
+        $stock_stmt = mysqli_prepare(
+            $conn,
+            "SELECT stock
+             FROM books
+             WHERE id = ?
+             FOR UPDATE"
+        );
+
+        if (!$stock_stmt) {
+            throw new Exception(
+                "Gagal memeriksa stok buku."
+            );
+        }
+
+        foreach ($book_ids as $book_id) {
+
+            $quantity = (int) $cart[$book_id]['quantity'];
+
+            mysqli_stmt_bind_param(
+                $stock_stmt,
+                "i",
+                $book_id
+            );
+
+            if (!mysqli_stmt_execute($stock_stmt)) {
+                throw new Exception(
+                    "Gagal mengambil stok buku."
+                );
+            }
+
+            $stock_result = mysqli_stmt_get_result($stock_stmt);
+            $stock_data = mysqli_fetch_assoc($stock_result);
+
+            if (!$stock_data) {
+                throw new Exception(
+                    "Salah satu buku sudah tidak tersedia."
+                );
+            }
+
+            $available_stock = (int) $stock_data['stock'];
+
+            if (
+                $available_stock <= 0 ||
+                $quantity > $available_stock
+            ) {
+                throw new Exception(
+                    "Stok buku " .
+                    $cart[$book_id]['title'] .
+                    " tidak mencukupi. Silakan periksa keranjang."
+                );
+            }
+        }
+
+        mysqli_stmt_close($stock_stmt);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Kurangi Stok Buku
+        |--------------------------------------------------------------------------
+        */
+
+        $update_stock_stmt = mysqli_prepare(
+            $conn,
+            "UPDATE books
+             SET stock = stock - ?
+             WHERE id = ?
+             AND stock >= ?"
+        );
+
+        if (!$update_stock_stmt) {
+            throw new Exception(
+                "Gagal menyiapkan pengurangan stok."
+            );
+        }
+
+        foreach ($cart as $item) {
+
+            $book_id = (int) $item['id'];
+            $quantity = (int) $item['quantity'];
+
+            mysqli_stmt_bind_param(
+                $update_stock_stmt,
+                "iii",
+                $quantity,
+                $book_id,
+                $quantity
+            );
+
+            if (!mysqli_stmt_execute($update_stock_stmt)) {
+                throw new Exception(
+                    "Gagal mengurangi stok buku."
+                );
+            }
+
+            if (mysqli_stmt_affected_rows($update_stock_stmt) !== 1) {
+                throw new Exception(
+                    "Stok buku berubah. Silakan periksa keranjang dan coba kembali."
+                );
+            }
+        }
+
+        mysqli_stmt_close($update_stock_stmt);
 
         /*
         |--------------------------------------------------------------------------
@@ -292,8 +409,9 @@ if (!isset($_SESSION['last_order'])) {
         mysqli_rollback($conn);
 
         die(
-            "Terjadi kesalahan saat membuat pesanan. " .
-            "Silakan coba kembali."
+            "Pesanan belum berhasil dibuat: " .
+            htmlspecialchars($e->getMessage()) .
+            "<br><br><a href='cart.php'>Kembali ke Keranjang</a>"
         );
     }
 }
@@ -917,9 +1035,7 @@ $order_date = date(
 
                         <i class="fa-solid fa-circle-info"></i>
 
-                        Ini adalah bukti pembayaran simulasi
-                        untuk kebutuhan pembelajaran BookVerse.
-                        Tidak ada transaksi uang sungguhan yang dilakukan.
+                        This is a simulated payment receipt for BookVerse learning purposes. No real-money transactions have taken place.
 
                     </p>
 

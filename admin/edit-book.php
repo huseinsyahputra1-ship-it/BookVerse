@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -65,7 +66,7 @@ $bookQuery = mysqli_query(
      LIMIT 1"
 );
 
-if (mysqli_num_rows($bookQuery) === 0) {
+if (!$bookQuery || mysqli_num_rows($bookQuery) === 0) {
 
     echo "<script>
         alert('Buku tidak ditemukan!');
@@ -91,6 +92,10 @@ if (isset($_POST['update_book'])) {
     $price = trim($_POST['price']);
     $category = trim($_POST['category']);
     $description = trim($_POST['description']);
+    $stock = isset($_POST['stock']) ? (int) $_POST['stock'] : -1;
+
+    // FEATURED BOOK
+    $is_featured = isset($_POST['is_featured']) ? 1 : 0;
 
     /*
     |--------------------------------------------------------------------------
@@ -108,6 +113,12 @@ if (isset($_POST['update_book'])) {
 
         echo "<script>
             alert('Semua field wajib diisi!');
+        </script>";
+
+    } elseif ($stock < 0) {
+
+        echo "<script>
+            alert('Jumlah stok tidak boleh kurang dari 0!');
         </script>";
 
     } else {
@@ -148,7 +159,7 @@ if (isset($_POST['update_book'])) {
             |--------------------------------------------------------------------------
             */
 
-            if (!in_array($fileExtension, $allowedExtensions)) {
+            if (!in_array($fileExtension, $allowedExtensions, true)) {
 
                 echo "<script>
                     alert('Format gambar tidak didukung!');
@@ -175,6 +186,16 @@ if (isset($_POST['update_book'])) {
             */
 
             $uploadDirectory = "../assets/img/books/";
+
+            if (!is_dir($uploadDirectory)) {
+
+                mkdir(
+                    $uploadDirectory,
+                    0777,
+                    true
+                );
+
+            }
 
             $newImageName = uniqid(
                 'book_',
@@ -227,23 +248,29 @@ if (isset($_POST['update_book'])) {
                 price = ?,
                 category = ?,
                 description = ?,
-                image = ?
+                image = ?,
+                is_featured = ?,
+                stock = ?
              WHERE id = ?"
         );
 
         mysqli_stmt_bind_param(
             $stmt,
-            "ssdsssi",
+            "ssdsssiii",
             $title,
             $author,
             $price,
             $category,
             $description,
             $imagePath,
+            $is_featured,
+            $stock,
             $bookId
         );
 
         if (mysqli_stmt_execute($stmt)) {
+
+            mysqli_stmt_close($stmt);
 
             echo "<script>
                 alert('Buku berhasil diperbarui!');
@@ -267,6 +294,7 @@ if (isset($_POST['update_book'])) {
 }
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -292,7 +320,7 @@ if (isset($_POST['update_book'])) {
 
 <body>
 
-    <!-- ================= ADMIN HEADER ================= -->
+    <!-- ADMIN HEADER -->
 
     <header class="admin-header">
 
@@ -339,13 +367,11 @@ if (isset($_POST['update_book'])) {
 
     </header>
 
-
-    <!-- ================= ADMIN LAYOUT ================= -->
+    <!-- ADMIN LAYOUT -->
 
     <div class="admin-layout">
 
-
-        <!-- ================= SIDEBAR ================= -->
+        <!-- SIDEBAR -->
 
         <aside class="admin-sidebar">
 
@@ -409,8 +435,7 @@ if (isset($_POST['update_book'])) {
 
         </aside>
 
-
-        <!-- ================= MAIN CONTENT ================= -->
+        <!-- MAIN CONTENT -->
 
         <main class="admin-main">
 
@@ -444,8 +469,7 @@ if (isset($_POST['update_book'])) {
 
             </div>
 
-
-            <!-- ================= EDIT FORM ================= -->
+            <!-- EDIT FORM -->
 
             <section class="admin-form-section">
 
@@ -454,7 +478,6 @@ if (isset($_POST['update_book'])) {
                     method="POST"
                     enctype="multipart/form-data"
                     class="admin-book-form">
-
 
                     <!-- BOOK COVER -->
 
@@ -485,7 +508,6 @@ if (isset($_POST['update_book'])) {
 
                     </div>
 
-
                     <!-- TITLE -->
 
                     <div class="admin-form-group">
@@ -504,7 +526,6 @@ if (isset($_POST['update_book'])) {
 
                     </div>
 
-
                     <!-- AUTHOR -->
 
                     <div class="admin-form-group">
@@ -522,7 +543,6 @@ if (isset($_POST['update_book'])) {
                             required>
 
                     </div>
-
 
                     <!-- PRICE -->
 
@@ -543,6 +563,24 @@ if (isset($_POST['update_book'])) {
 
                     </div>
 
+                    <!-- STOCK -->
+
+                    <div class="admin-form-group">
+
+                        <label for="stock">
+                            Book Stock
+                        </label>
+
+                        <input
+                            type="number"
+                            id="stock"
+                            name="stock"
+                            value="<?php echo (int) $book['stock']; ?>"
+                            placeholder="Enter available stock"
+                            min="0"
+                            required>
+
+                    </div>
 
                     <!-- CATEGORY -->
 
@@ -562,7 +600,6 @@ if (isset($_POST['update_book'])) {
 
                     </div>
 
-
                     <!-- DESCRIPTION -->
 
                     <div class="admin-form-group">
@@ -579,6 +616,28 @@ if (isset($_POST['update_book'])) {
 
                     </div>
 
+                    <!-- FEATURED BOOK -->
+
+                    <div class="admin-form-group">
+
+                        <label>Featured Book</label>
+
+                        <div class="featured-checkbox">
+
+                            <input
+                                type="checkbox"
+                                name="is_featured"
+                                id="is_featured"
+                                value="1"
+                                <?php echo !empty($book['is_featured']) ? 'checked' : ''; ?>>
+
+                            <label for="is_featured">
+                                Display this book on the homepage
+                            </label>
+
+                        </div>
+
+                    </div>
 
                     <!-- FORM ACTIONS -->
 

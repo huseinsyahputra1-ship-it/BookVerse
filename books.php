@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -75,6 +76,52 @@ if ($selectedCategory !== '') {
     <link
         rel="stylesheet"
         href="assets/css/style.css">
+
+    <style>
+        .book-image-wrapper {
+            position: relative;
+            display: block;
+        }
+
+        .stock-light {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            z-index: 5;
+            border: 2px solid #fff;
+        }
+
+        .stock-light.available {
+            background: #22c55e;
+        }
+
+        .stock-light.sold-out {
+            background: #ef4444;
+        }
+
+        .stock-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin: 8px 0;
+        }
+
+        .stock-label.low {
+            color: #e59a18;
+        }
+
+        .stock-label.empty {
+            color: #e53935;
+        }
+
+        .book-action a.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+    </style>
 
 </head>
 
@@ -379,10 +426,15 @@ if ($selectedCategory !== '') {
                                 href="book-detail.php?id=<?php echo $book['id']; ?>"
                                 class="book-detail-link">
 
-                                <img
-                                    src="<?php echo htmlspecialchars($book['image']); ?>"
-                                    alt="<?php echo htmlspecialchars($book['title']); ?>">
+                                <div class="book-image-wrapper">
 
+                                    <span class="stock-light <?php echo (int) $book['stock'] > 0 ? 'available' : 'sold-out'; ?>"></span>
+
+                                    <img
+                                        src="<?php echo htmlspecialchars($book['image']); ?>"
+                                        alt="<?php echo htmlspecialchars($book['title']); ?>">
+
+                                </div>
 
                                 <h3>
 
@@ -422,26 +474,68 @@ if ($selectedCategory !== '') {
                             </a>
 
 
+                            <!-- Stock Information -->
+
+                            <?php if ((int) $book['stock'] > 0 && (int) $book['stock'] <= 5): ?>
+
+                                <p class="stock-label low">
+                                    Only <?php echo (int) $book['stock']; ?> left
+                                </p>
+
+                            <?php elseif ((int) $book['stock'] <= 0): ?>
+
+                                <p class="stock-label empty">
+                                    Out of Stock
+                                </p>
+
+                            <?php endif; ?>
+
+
                             <!-- Actions -->
 
                             <div class="book-action">
 
-                                <a
-                                    href="add-to-cart.php?id=<?php echo $book['id']; ?>"
-                                    class="cart-btn">
+                                <?php if ((int) $book['stock'] > 0): ?>
 
-                                    🛒 Cart
+                                    <a
+                                        href="add-to-cart.php?id=<?php echo $book['id']; ?>"
+                                        class="cart-btn">
 
-                                </a>
+                                        🛒 Cart
+
+                                    </a>
 
 
-                                <a
-                                    href="book-detail.php?id=<?php echo $book['id']; ?>"
-                                    class="buy-btn">
+                                    <a
+                                        href="book-detail.php?id=<?php echo $book['id']; ?>"
+                                        class="buy-btn">
 
-                                    Beli
+                                        Beli
 
-                                </a>
+                                    </a>
+
+                                <?php else: ?>
+
+                                    <a
+                                        href="javascript:void(0)"
+                                        class="cart-btn disabled"
+                                        aria-disabled="true">
+
+                                        🛒 Cart
+
+                                    </a>
+
+
+                                    <a
+                                        href="javascript:void(0)"
+                                        class="buy-btn disabled"
+                                        aria-disabled="true">
+
+                                        Habis
+
+                                    </a>
+
+                                <?php endif; ?>
 
                             </div>
 

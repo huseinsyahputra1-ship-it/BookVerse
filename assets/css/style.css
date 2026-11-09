@@ -8381,3 +8381,70 @@ ul{
 .category .category-card .icon-romance {
     color: #ec4899;
 }
+
+.featured-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.featured-checkbox input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #6842f5;
+}
+
+.featured-checkbox label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: #444;
+}
+
+/* STOCK INDICATOR */
+.book-image-wrapper {
+    position: relative;
+    display: block;
+}
+
+.stock-light {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    z-index: 5;
+    border: 2px solid #fff;
+}
+
+.stock-light.available {
+    background: #22c55e;
+}
+
+.stock-light.sold-out {
+    background: #ef4444;
+}
+
+.stock-label {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+.stock-label.low {
+    color: #e59a18;
+}
+
+.stock-label.empty {
+    color: #e53935;
+}
+
+.book-action a.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}

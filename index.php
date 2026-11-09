@@ -1,3 +1,4 @@
+
 <?php
 
 session_start();
@@ -42,7 +43,7 @@ $categoryQuery = mysqli_query(
 
     <link
         rel="preconnect"
-        href="https://fonts.googleapis.com"
+        href="https://fonts.gstatic.com"
         crossorigin>
 
     <link
@@ -66,6 +67,12 @@ $categoryQuery = mysqli_query(
     <link
         rel="stylesheet"
         href="assets/css/categories.css">
+
+    <!-- CSS Khusus Stock Indicator -->
+
+    <link
+        rel="stylesheet"
+        href="assets/css/stock-indicator.css">
 
 </head>
 
@@ -710,7 +717,8 @@ $categoryQuery = mysqli_query(
                     $conn,
                     "SELECT *
                      FROM books
-                     ORDER BY id ASC"
+                     WHERE is_featured = 1
+                     ORDER BY id DESC"
                 );
 
                 while ($book = mysqli_fetch_assoc($query)):
@@ -730,13 +738,21 @@ $categoryQuery = mysqli_query(
 
                         </a>
 
+                        <!-- Book Detail -->
+
                         <a
                             href="book-detail.php?id=<?php echo $book['id']; ?>"
                             class="book-detail-link">
 
-                            <img
-                                src="<?php echo htmlspecialchars($book['image']); ?>"
-                                alt="<?php echo htmlspecialchars($book['title']); ?>">
+                            <div class="book-image-wrapper">
+
+                                <span class="stock-light <?php echo (int) $book['stock'] > 0 ? 'available' : 'sold-out'; ?>"></span>
+
+                                <img
+                                    src="<?php echo htmlspecialchars($book['image']); ?>"
+                                    alt="<?php echo htmlspecialchars($book['title']); ?>">
+
+                            </div>
 
                             <h3>
                                 <?php echo htmlspecialchars($book['title']); ?>
@@ -752,23 +768,65 @@ $categoryQuery = mysqli_query(
 
                         </a>
 
+                        <!-- Stock Information -->
+
+                        <?php if ((int) $book['stock'] > 0 && (int) $book['stock'] <= 5): ?>
+
+                            <p class="stock-label low">
+                                Only <?php echo (int) $book['stock']; ?> left
+                            </p>
+
+                        <?php elseif ((int) $book['stock'] <= 0): ?>
+
+                            <p class="stock-label empty">
+                                Out of Stock
+                            </p>
+
+                        <?php endif; ?>
+
+                        <!-- Actions -->
+
                         <div class="book-action">
 
-                            <a
-                                href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=home"
-                                class="cart-btn">
+                            <?php if ((int) $book['stock'] > 0): ?>
 
-                                🛒 Cart
+                                <a
+                                    href="add-to-cart.php?id=<?php echo $book['id']; ?>&redirect=home"
+                                    class="cart-btn">
 
-                            </a>
+                                    🛒 Cart
 
-                            <a
-                                href="book-detail.php?id=<?php echo $book['id']; ?>"
-                                class="buy-btn">
+                                </a>
 
-                                Buy
+                                <a
+                                    href="book-detail.php?id=<?php echo $book['id']; ?>"
+                                    class="buy-btn">
 
-                            </a>
+                                    Buy
+
+                                </a>
+
+                            <?php else: ?>
+
+                                <a
+                                    href="javascript:void(0)"
+                                    class="cart-btn disabled"
+                                    aria-disabled="true">
+
+                                    🛒 Cart
+
+                                </a>
+
+                                <a
+                                    href="javascript:void(0)"
+                                    class="buy-btn disabled"
+                                    aria-disabled="true">
+
+                                    Out of Stock
+
+                                </a>
+
+                            <?php endif; ?>
 
                         </div>
 
