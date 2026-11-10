@@ -1,7 +1,6 @@
-
 <?php
 
-session_start();
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 
@@ -81,6 +80,43 @@ $book = mysqli_fetch_assoc($bookQuery);
 
 /*
 |--------------------------------------------------------------------------
+| GET CATEGORIES
+|--------------------------------------------------------------------------
+*/
+
+$categoriesQuery = mysqli_query(
+    $conn,
+    "SELECT name
+     FROM categories
+     ORDER BY name ASC"
+);
+
+if (!$categoriesQuery) {
+
+    die("Gagal mengambil data kategori: " . mysqli_error($conn));
+
+}
+
+$categories = [];
+
+while ($categoryRow = mysqli_fetch_assoc($categoriesQuery)) {
+
+    $categories[] = $categoryRow['name'];
+
+}
+
+// Pastikan kategori lama buku tetap tersedia
+if (
+    !empty($book['category']) &&
+    !in_array($book['category'], $categories, true)
+) {
+
+    $categories[] = $book['category'];
+
+}
+
+/*
+|--------------------------------------------------------------------------
 | UPDATE BOOK
 |--------------------------------------------------------------------------
 */
@@ -96,6 +132,9 @@ if (isset($_POST['update_book'])) {
 
     // FEATURED BOOK
     $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+
+    // VALIDATE CATEGORY
+    $categoryExists = in_array($category, $categories, true);
 
     /*
     |--------------------------------------------------------------------------
@@ -113,6 +152,12 @@ if (isset($_POST['update_book'])) {
 
         echo "<script>
             alert('Semua field wajib diisi!');
+        </script>";
+
+    } elseif (!$categoryExists) {
+
+        echo "<script>
+            alert('Kategori tidak valid! Silakan pilih kategori yang tersedia.');
         </script>";
 
     } elseif ($stock < 0) {
@@ -216,13 +261,159 @@ if (isset($_POST['update_book'])) {
 
             $imagePath = "assets/img/books/" . $newImageName;
 
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | STOCK HISTORY & UPDATE DATABASE
+        |--------------------------------------------------------------------------
+        */
+
+        $stock_before = (int) $book['stock'];
+        $stock_after = $stock;
+
+        $newImageUploaded = ($imagePath !== $book['image']);
+
+        mysqli_begin_transaction($conn);
+
+        try {
+
             /*
             |--------------------------------------------------------------------------
-            | DELETE OLD IMAGE
+            | UPDATE BOOK DATA
+            |--------------------------------------------------------------------------
+            */
+
+            $stmt = mysqli_prepare(
+                $conn,
+                "UPDATE books
+                 SET
+                    title = ?,
+                    author = ?,
+                    price = ?,
+                    category = ?,
+                    description = ?,
+                    image = ?,
+                    is_featured = ?,
+                    stock = ?
+                 WHERE id = ?"
+            );
+
+            if (!$stmt) {
+
+                throw new Exception("Gagal menyiapkan query update buku.");
+
+            }
+
+            mysqli_stmt_bind_param(
+                $stmt,
+                "ssdsssiii",
+                $title,
+                $author,
+                $price,
+                $category,
+                $description,
+                $imagePath,
+                $is_featured,
+                $stock,
+                $bookId
+            );
+
+            if (!mysqli_stmt_execute($stmt)) {
+
+                throw new Exception("Gagal memperbarui data buku.");
+
+            }
+
+            mysqli_stmt_close($stmt);
+
+            /*
+            |--------------------------------------------------------------------------
+            | INSERT STOCK HISTORY
+            |--------------------------------------------------------------------------
+            */
+
+            if ($stock_before !== $stock_after) {
+
+                if ($stock_after > $stock_before) {
+
+                    $activity_type = "Stock In";
+
+                    $quantity = $stock_after - $stock_before;
+
+                    $notes = "Penambahan stok melalui Edit Book";
+
+                } else {
+
+                    $activity_type = "Stock Out";
+
+                    $quantity = $stock_before - $stock_after;
+
+                    $notes = "Pengurangan stok melalui Edit Book";
+
+                }
+
+                $admin_id = (int) $_SESSION['user_id'];
+
+                $historyStmt = mysqli_prepare(
+                    $conn,
+                    "INSERT INTO stock_history
+                    (
+                        book_id,
+                        user_id,
+                        activity_type,
+                        quantity,
+                        stock_before,
+                        stock_after,
+                        notes
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)"
+                );
+
+                if (!$historyStmt) {
+
+                    throw new Exception("Gagal menyiapkan riwayat stok.");
+
+                }
+
+                mysqli_stmt_bind_param(
+                    $historyStmt,
+                    "iisiiis",
+                    $bookId,
+                    $admin_id,
+                    $activity_type,
+                    $quantity,
+                    $stock_before,
+                    $stock_after,
+                    $notes
+                );
+
+                if (!mysqli_stmt_execute($historyStmt)) {
+
+                    throw new Exception("Gagal menyimpan riwayat stok.");
+
+                }
+
+                mysqli_stmt_close($historyStmt);
+
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | COMMIT TRANSACTION
+            |--------------------------------------------------------------------------
+            */
+
+            mysqli_commit($conn);
+
+            /*
+            |--------------------------------------------------------------------------
+            | DELETE OLD IMAGE AFTER SUCCESS
             |--------------------------------------------------------------------------
             */
 
             if (
+                $newImageUploaded &&
                 !empty($book['image']) &&
                 file_exists("../" . $book['image'])
             ) {
@@ -231,47 +422,6 @@ if (isset($_POST['update_book'])) {
 
             }
 
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE DATABASE
-        |--------------------------------------------------------------------------
-        */
-
-        $stmt = mysqli_prepare(
-            $conn,
-            "UPDATE books
-             SET
-                title = ?,
-                author = ?,
-                price = ?,
-                category = ?,
-                description = ?,
-                image = ?,
-                is_featured = ?,
-                stock = ?
-             WHERE id = ?"
-        );
-
-        mysqli_stmt_bind_param(
-            $stmt,
-            "ssdsssiii",
-            $title,
-            $author,
-            $price,
-            $category,
-            $description,
-            $imagePath,
-            $is_featured,
-            $stock,
-            $bookId
-        );
-
-        if (mysqli_stmt_execute($stmt)) {
-
-            mysqli_stmt_close($stmt);
-
             echo "<script>
                 alert('Buku berhasil diperbarui!');
                 window.location='books.php';
@@ -279,15 +429,30 @@ if (isset($_POST['update_book'])) {
 
             exit();
 
-        } else {
+        } catch (Exception $e) {
+
+            mysqli_rollback($conn);
+
+            /*
+            |--------------------------------------------------------------------------
+            | DELETE NEW IMAGE IF UPDATE FAILED
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $newImageUploaded &&
+                file_exists("../" . $imagePath)
+            ) {
+
+                unlink("../" . $imagePath);
+
+            }
 
             echo "<script>
-                alert('Gagal memperbarui buku!');
+                alert('Gagal memperbarui buku: " . addslashes($e->getMessage()) . "');
             </script>";
 
         }
-
-        mysqli_stmt_close($stmt);
 
     }
 
@@ -354,7 +519,7 @@ if (isset($_POST['update_book'])) {
             </span>
 
             <a
-                href="../logout.php"
+                href="logout.php"
                 class="admin-logout">
 
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -397,8 +562,20 @@ if (isset($_POST['update_book'])) {
 
                 </a>
 
+                <!-- MANAGE CATEGORIES -->
+
                 <a
-                    href="#"
+                    href="categories.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-tags"></i>
+
+                    Manage Categories
+
+                </a>
+
+                <a
+                    href="orders.php"
                     class="admin-nav-link">
 
                     <i class="fa-solid fa-box"></i>
@@ -408,12 +585,56 @@ if (isset($_POST['update_book'])) {
                 </a>
 
                 <a
-                    href="#"
+                    href="payment-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-credit-card"></i>
+
+                    Payment Transactions
+
+                </a>
+
+                <a
+                    href="return-management.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-undo"></i>
+
+                    Return Management
+
+                </a>
+
+                <a
+                    href="users.php"
                     class="admin-nav-link">
 
                     <i class="fa-solid fa-users"></i>
 
                     Manage Users
+
+                </a>
+
+                <!-- MESSAGES -->
+
+                <a
+                    href="messages.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-envelope"></i>
+
+                    Messages
+
+                </a>
+
+                <!-- STOCK HISTORY -->
+
+                <a
+                    href="stock-history.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+
+                    Stock History
 
                 </a>
 
@@ -590,13 +811,29 @@ if (isset($_POST['update_book'])) {
                             Category
                         </label>
 
-                        <input
-                            type="text"
+                        <select
                             id="category"
                             name="category"
-                            value="<?php echo htmlspecialchars($book['category']); ?>"
-                            placeholder="Example: Fiction, Fantasy, Romance"
-                            required>
+                            required
+                            style="width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit;">
+
+                            <option value="">
+                                Select Book Category
+                            </option>
+
+                            <?php foreach ($categories as $categoryName): ?>
+
+                                <option
+                                    value="<?php echo htmlspecialchars($categoryName); ?>"
+                                    <?php echo $book['category'] === $categoryName ? 'selected' : ''; ?>>
+
+                                    <?php echo htmlspecialchars($categoryName); ?>
+
+                                </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
 
                     </div>
 

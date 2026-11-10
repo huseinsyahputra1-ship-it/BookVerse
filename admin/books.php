@@ -1,6 +1,8 @@
+
 <?php
 
-session_start();
+// Gunakan session khusus Admin
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 
@@ -181,6 +183,19 @@ $booksQuery = mysqli_query(
                 </a>
 
 
+                <!-- MANAGE CATEGORIES -->
+
+                <a
+                    href="categories.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-tags"></i>
+
+                    <span>Manage Categories</span>
+
+                </a>
+
+
                 <a
                     href="orders.php"
                     class="admin-nav-link">
@@ -191,6 +206,23 @@ $booksQuery = mysqli_query(
 
                 </a>
 
+                <a
+                    href="payment-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid  fa-money-bill-transfer"></i>
+                    <span>Payment Transactions</span>
+
+                </a>    
+
+                <a
+                    href="return-requests.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-undo"></i>
+                    <span>Return Management</span>
+
+                </a>
 
                 <a
                     href="users.php"
@@ -199,6 +231,32 @@ $booksQuery = mysqli_query(
                     <i class="fa-solid fa-users"></i>
 
                     <span>Manage Users</span>
+
+                </a>
+
+
+                <!-- MESSAGES -->
+
+                <a
+                    href="messages.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-envelope"></i>
+
+                    <span>Messages</span>
+
+                </a>
+
+
+                <!-- STOCK HISTORY -->
+
+                <a
+                    href="stock-history.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+
+                    <span>Stock History</span>
 
                 </a>
 

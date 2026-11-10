@@ -1,56 +1,39 @@
 <?php
 
-session_start();
-
+require_once __DIR__ . '/admin-session.php';
 include "../config/database.php";
 
-// Admin access
-if (!isset($_SESSION['user_id'])) {
+// ================= ADMIN ACCESS =================
+
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit();
 }
 
-if ($_SESSION['role'] !== 'admin') {
-    echo "<script>
-        alert('Akses ditolak! Halaman ini hanya untuk admin.');
-        window.location='../index.php';
-    </script>";
+// ================= VALIDATE ORDER ID =================
 
-    exit();
-}
-
-// Validate order ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     echo "<script>
         alert('ID pesanan tidak valid!');
         window.location='orders.php';
     </script>";
-
     exit();
 }
 
 $orderId = (int) $_GET['id'];
 
-// Get order data
+// ================= GET ORDER =================
+
 $orderStmt = mysqli_prepare(
     $conn,
-    "SELECT
-        orders.*,
-        users.fullname,
-        users.email
+    "SELECT orders.*, users.fullname, users.email
      FROM orders
-     INNER JOIN users
-        ON orders.user_id = users.id
+     INNER JOIN users ON orders.user_id = users.id
      WHERE orders.id = ?
      LIMIT 1"
 );
 
-mysqli_stmt_bind_param(
-    $orderStmt,
-    "i",
-    $orderId
-);
-
+mysqli_stmt_bind_param($orderStmt, "i", $orderId);
 mysqli_stmt_execute($orderStmt);
 
 $orderResult = mysqli_stmt_get_result($orderStmt);
@@ -62,40 +45,243 @@ if (mysqli_num_rows($orderResult) === 0) {
         alert('Pesanan tidak ditemukan!');
         window.location='orders.php';
     </script>";
-
     exit();
 }
 
 $order = mysqli_fetch_assoc($orderResult);
-
 mysqli_stmt_close($orderStmt);
 
-// Update order status
+// ================= GET PAYMENT =================
+
+$paymentStmt = mysqli_prepare(
+    $conn,
+    "SELECT *
+     FROM payment_transactions
+     WHERE order_id = ?
+     ORDER BY id DESC
+     LIMIT 1"
+);
+
+mysqli_stmt_bind_param($paymentStmt, "i", $orderId);
+mysqli_stmt_execute($paymentStmt);
+
+$paymentResult = mysqli_stmt_get_result($paymentStmt);
+$payment = mysqli_fetch_assoc($paymentResult);
+
+mysqli_stmt_close($paymentStmt);
+
+// ================= GET SHIPPING =================
+
+$shippingStmt = mysqli_prepare(
+    $conn,
+    "SELECT *
+     FROM order_shipping
+     WHERE order_id = ?
+     LIMIT 1"
+);
+
+mysqli_stmt_bind_param($shippingStmt, "i", $orderId);
+mysqli_stmt_execute($shippingStmt);
+
+$shippingResult = mysqli_stmt_get_result($shippingStmt);
+$shipping = mysqli_fetch_assoc($shippingResult);
+
+mysqli_stmt_close($shippingStmt);
+
+// ================= PROCESS SHIPPING =================
+
+if (isset($_POST['ship_order'])) {
+
+    $courier = trim($_POST['courier'] ?? '');
+    $trackingNumber = trim($_POST['tracking_number'] ?? '');
+
+    if ($order['status'] !== 'Processing') {
+
+        echo "<script>
+            alert('Pesanan harus berstatus Processing sebelum dikirim!');
+            window.location='order-detail.php?id=$orderId';
+        </script>";
+
+        exit();
+
+    } elseif (!$payment || $payment['payment_status'] !== 'Paid') {
+
+        echo "<script>
+            alert('Pesanan hanya dapat dikirim setelah pembayaran disetujui!');
+            window.location='order-detail.php?id=$orderId';
+        </script>";
+
+        exit();
+
+    } elseif ($courier === '' || $trackingNumber === '') {
+
+        echo "<script>
+            alert('Kurir dan nomor resi wajib diisi!');
+            window.location='order-detail.php?id=$orderId';
+        </script>";
+
+        exit();
+
+    } elseif (strlen($courier) > 100 || strlen($trackingNumber) > 150) {
+
+        echo "<script>
+            alert('Nama kurir atau nomor resi terlalu panjang!');
+            window.location='order-detail.php?id=$orderId';
+        </script>";
+
+        exit();
+
+    } elseif ($shipping && $shipping['shipping_status'] !== 'Not Shipped') {
+
+        echo "<script>
+            alert('Pesanan ini sudah masuk proses pengiriman!');
+            window.location='order-detail.php?id=$orderId';
+        </script>";
+
+        exit();
+
+    } else {
+
+        mysqli_begin_transaction($conn);
+
+        try {
+
+            // Simpan atau perbarui data pengiriman
+
+            if ($shipping) {
+
+                $shippingUpdate = mysqli_prepare(
+                    $conn,
+                    "UPDATE order_shipping
+                     SET courier = ?,
+                         tracking_number = ?,
+                         shipping_status = 'Shipped',
+                         shipped_at = NOW(),
+                         updated_at = NOW()
+                     WHERE order_id = ?
+                     AND shipping_status = 'Not Shipped'"
+                );
+
+                mysqli_stmt_bind_param(
+                    $shippingUpdate,
+                    "ssi",
+                    $courier,
+                    $trackingNumber,
+                    $orderId
+                );
+
+                mysqli_stmt_execute($shippingUpdate);
+
+                if (mysqli_stmt_affected_rows($shippingUpdate) !== 1) {
+                    throw new Exception("Gagal memperbarui data pengiriman.");
+                }
+
+                mysqli_stmt_close($shippingUpdate);
+
+            } else {
+
+                $shippingInsert = mysqli_prepare(
+                    $conn,
+                    "INSERT INTO order_shipping
+                    (
+                        order_id,
+                        courier,
+                        tracking_number,
+                        shipping_status,
+                        shipped_at
+                    )
+                    VALUES (?, ?, ?, 'Shipped', NOW())"
+                );
+
+                mysqli_stmt_bind_param(
+                    $shippingInsert,
+                    "iss",
+                    $orderId,
+                    $courier,
+                    $trackingNumber
+                );
+
+                if (!mysqli_stmt_execute($shippingInsert)) {
+                    throw new Exception("Gagal menyimpan data pengiriman.");
+                }
+
+                mysqli_stmt_close($shippingInsert);
+            }
+
+            // Ubah status pesanan menjadi Shipped
+
+            $orderUpdate = mysqli_prepare(
+                $conn,
+                "UPDATE orders
+                 SET status = 'Shipped'
+                 WHERE id = ?
+                 AND status = 'Processing'"
+            );
+
+            mysqli_stmt_bind_param($orderUpdate, "i", $orderId);
+            mysqli_stmt_execute($orderUpdate);
+
+            if (mysqli_stmt_affected_rows($orderUpdate) !== 1) {
+                throw new Exception("Gagal mengubah status pesanan menjadi Shipped.");
+            }
+
+            mysqli_stmt_close($orderUpdate);
+
+            mysqli_commit($conn);
+
+            echo "<script>
+                alert('Pesanan berhasil dikirim! Nomor resi berhasil disimpan.');
+                window.location='order-detail.php?id=$orderId';
+            </script>";
+
+            exit();
+
+        } catch (Throwable $e) {
+
+            mysqli_rollback($conn);
+
+            echo "<script>
+                alert(" . json_encode($e->getMessage()) . ");
+                window.location='order-detail.php?id=$orderId';
+            </script>";
+
+            exit();
+        }
+    }
+}
+
+// ================= UPDATE ORDER STATUS =================
+
 if (isset($_POST['update_status'])) {
 
     $status = $_POST['status'] ?? '';
 
-    $allowedStatuses = [
-        'Pending',
-        'Processing',
-        'Shipped',
-        'Completed',
-        'Cancelled'
-    ];
-
-    if (!in_array($status, $allowedStatuses, true)) {
+    if (!in_array($status, ['Pending', 'Processing', 'Cancelled'], true)) {
 
         echo "<script>
             alert('Status pesanan tidak valid!');
         </script>";
 
+    } elseif ($status === 'Processing' && (!$payment || $payment['payment_status'] !== 'Paid')) {
+
+        echo "<script>
+            alert('Pesanan hanya dapat diproses setelah pembayaran disetujui!');
+        </script>";
+
+    } elseif (in_array($order['status'], ['Shipped', 'Completed'], true)) {
+
+        echo "<script>
+            alert('Pesanan yang sudah dikirim tidak dapat diubah melalui menu ini!');
+            window.location='order-detail.php?id=$orderId';
+        </script>";
+
+        exit();
+
     } else {
 
         $updateStmt = mysqli_prepare(
             $conn,
-            "UPDATE orders
-             SET status = ?
-             WHERE id = ?"
+            "UPDATE orders SET status = ? WHERE id = ?"
         );
 
         mysqli_stmt_bind_param(
@@ -125,7 +311,8 @@ if (isset($_POST['update_status'])) {
     }
 }
 
-// Get order items
+// ================= GET ORDER ITEMS =================
+
 $itemsStmt = mysqli_prepare(
     $conn,
     "SELECT
@@ -134,18 +321,12 @@ $itemsStmt = mysqli_prepare(
         books.author,
         books.image
      FROM order_items
-     INNER JOIN books
-        ON order_items.book_id = books.id
+     INNER JOIN books ON order_items.book_id = books.id
      WHERE order_items.order_id = ?
      ORDER BY order_items.id ASC"
 );
 
-mysqli_stmt_bind_param(
-    $itemsStmt,
-    "i",
-    $orderId
-);
-
+mysqli_stmt_bind_param($itemsStmt, "i", $orderId);
 mysqli_stmt_execute($itemsStmt);
 
 $itemsResult = mysqli_stmt_get_result($itemsStmt);
@@ -159,19 +340,11 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>
-        Order Detail - BookVerse
-    </title>
+    <title>Order Detail - BookVerse</title>
 
-    <!-- Google Font -->
-
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
 
     <link
         rel="preconnect"
@@ -182,42 +355,31 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-    <!-- Font Awesome -->
-
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <!-- Main CSS -->
-
-    <link
-        rel="stylesheet"
-        href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
 
 </head>
 
 <body>
 
-    <!-- Admin Header -->
+    <!-- ADMIN HEADER -->
 
     <header class="admin-header">
 
         <div class="admin-header-left">
 
-            <a
-                href="index.php"
-                class="admin-logo">
+            <a href="index.php" class="admin-logo">
 
                 <img
                     src="../assets/img/hugeicons_book-open-02.png"
                     alt="BookVerse">
 
                 <div>
-
                     <h2>BookVerse</h2>
-
                     <span>Admin Panel</span>
-
                 </div>
 
             </a>
@@ -227,100 +389,89 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
         <div class="admin-header-right">
 
             <span class="admin-welcome">
-
                 <i class="fa-solid fa-user-shield"></i>
-
                 <?php echo htmlspecialchars($_SESSION['fullname']); ?>
-
             </span>
 
-            <a
-                href="../logout.php"
-                class="admin-logout">
-
+            <a href="logout.php" class="admin-logout">
                 <i class="fa-solid fa-right-from-bracket"></i>
-
                 Logout
-
             </a>
 
         </div>
 
     </header>
 
-    <!-- Admin Layout -->
+    <!-- ADMIN LAYOUT -->
 
     <div class="admin-layout">
 
-        <!-- Sidebar -->
+        <!-- SIDEBAR -->
 
         <aside class="admin-sidebar">
 
             <nav class="admin-nav">
 
-                <a
-                    href="index.php"
-                    class="admin-nav-link">
-
+                <a href="index.php" class="admin-nav-link">
                     <i class="fa-solid fa-chart-line"></i>
-
                     <span>Dashboard</span>
-
                 </a>
 
-                <a
-                    href="books.php"
-                    class="admin-nav-link">
-
+                <a href="books.php" class="admin-nav-link">
                     <i class="fa-solid fa-book"></i>
-
                     <span>Manage Books</span>
-
                 </a>
 
-                <a
-                    href="orders.php"
-                    class="admin-nav-link active">
+                <a href="categories.php" class="admin-nav-link">
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Manage Categories</span>
+                </a>
 
+                <a href="orders.php" class="admin-nav-link active">
                     <i class="fa-solid fa-box"></i>
-
                     <span>Manage Orders</span>
-
                 </a>
 
-                <a
-                    href="users.php"
-                    class="admin-nav-link">
+                <a href="payment-transactions.php" class="admin-nav-link">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <span>Payment Transactions</span>
+                </a>
 
+                <a href="return-management.php" class="admin-nav-link">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Return Management</span>
+
+                <a href="users.php" class="admin-nav-link">
                     <i class="fa-solid fa-users"></i>
-
                     <span>Manage Users</span>
+                </a>
 
+                <a href="messages.php" class="admin-nav-link">
+                    <i class="fa-solid fa-envelope"></i>
+                    <span>Messages</span>
+                </a>
+
+                <a href="stock-history.php" class="admin-nav-link">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Stock History</span>
                 </a>
 
             </nav>
 
             <div class="admin-sidebar-bottom">
 
-                <a
-                    href="../index.php"
-                    class="admin-back-home">
-
+                <a href="../index.php" class="admin-back-home">
                     <i class="fa-solid fa-house"></i>
-
                     <span>Back to Store</span>
-
                 </a>
 
             </div>
 
         </aside>
 
-        <!-- Main Content -->
+        <!-- MAIN CONTENT -->
 
         <main class="admin-main">
-
-            <!-- Page Header -->
 
             <div class="admin-page-header">
 
@@ -330,206 +481,353 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                         ORDER MANAGEMENT
                     </span>
 
-                    <h1>
-                        Order Detail
-                    </h1>
+                    <h1>Order Detail</h1>
 
                     <p>
-                        View customer order information and manage its status.
+                        View customer order, payment and shipping information.
                     </p>
 
                 </div>
 
-                <a
-                    href="orders.php"
-                    class="admin-back-button">
-
+                <a href="orders.php" class="admin-back-button">
                     <i class="fa-solid fa-arrow-left"></i>
-
                     Back to Orders
-
                 </a>
 
             </div>
 
-            <!-- Order Information -->
+            <!-- ORDER INFORMATION -->
 
             <section class="admin-section">
 
                 <div class="admin-section-header">
-
                     <div>
-
                         <span class="admin-section-label">
                             ORDER INFORMATION
                         </span>
 
                         <h2>
-                            <?php echo htmlspecialchars(
-                                $order['order_number']
-                            ); ?>
+                            <?php echo htmlspecialchars($order['order_number']); ?>
                         </h2>
-
                     </div>
-
                 </div>
 
                 <div class="admin-order-info-grid">
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Customer
-                        </span>
-
+                        <span>Customer</span>
                         <strong>
-                            <?php echo htmlspecialchars(
-                                $order['fullname']
-                            ); ?>
+                            <?php echo htmlspecialchars($order['fullname']); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Email
-                        </span>
-
+                        <span>Email</span>
                         <strong>
-                            <?php echo htmlspecialchars(
-                                $order['email']
-                            ); ?>
+                            <?php echo htmlspecialchars($order['email']); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Recipient
-                        </span>
-
+                        <span>Recipient</span>
                         <strong>
-                            <?php echo htmlspecialchars(
-                                $order['recipient_name']
-                            ); ?>
+                            <?php echo htmlspecialchars($order['recipient_name']); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Phone
-                        </span>
-
+                        <span>Phone</span>
                         <strong>
-                            <?php echo htmlspecialchars(
-                                $order['phone']
-                            ); ?>
+                            <?php echo htmlspecialchars($order['phone']); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Order Number
-                        </span>
-
+                        <span>Order Number</span>
                         <strong>
-                            #<?php echo htmlspecialchars(
-                                $order['order_number']
-                            ); ?>
+                            #<?php echo htmlspecialchars($order['order_number']); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Order Date
-                        </span>
-
+                        <span>Order Date</span>
                         <strong>
-                            <?php echo date(
-                                'd M Y, H:i',
-                                strtotime($order['created_at'])
-                            ); ?>
+                            <?php echo date('d M Y, H:i', strtotime($order['created_at'])); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Current Status
-                        </span>
-
+                        <span>Order Status</span>
                         <strong>
-                            <?php echo htmlspecialchars(
-                                $order['status']
-                            ); ?>
+                            <?php echo htmlspecialchars($order['status']); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card">
-
-                        <span>
-                            Total Payment
-                        </span>
-
+                        <span>Total Payment</span>
                         <strong class="admin-order-total">
-
-                            Rp<?php echo number_format(
-                                $order['total_price'],
-                                0,
-                                ',',
-                                '.'
-                            ); ?>
-
+                            Rp<?php echo number_format($order['total_price'], 0, ',', '.'); ?>
                         </strong>
-
                     </div>
 
                     <div class="admin-order-info-card admin-order-address-card">
-
-                        <span>
-                            Delivery Address
-                        </span>
-
+                        <span>Delivery Address</span>
                         <strong>
-                            <?php echo nl2br(
-                                htmlspecialchars($order['address'])
-                            ); ?>
+                            <?php echo nl2br(htmlspecialchars($order['address'])); ?>
                         </strong>
-
                     </div>
 
                 </div>
 
             </section>
 
-            <!-- Order Items -->
+            <!-- PAYMENT INFORMATION -->
 
             <section class="admin-section">
 
                 <div class="admin-section-header">
-
                     <div>
-
                         <span class="admin-section-label">
-                            ORDER ITEMS
+                            PAYMENT INFORMATION
                         </span>
+                        <h2>Payment Details</h2>
+                    </div>
+                </div>
 
-                        <h2>
-                            Books Ordered
-                        </h2>
+                <?php if ($payment): ?>
+
+                    <div class="admin-order-info-grid">
+
+                        <div class="admin-order-info-card">
+                            <span>Transaction Code</span>
+                            <strong>
+                                <?php echo htmlspecialchars($payment['transaction_code']); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Payment Method</span>
+                            <strong>
+                                <?php echo htmlspecialchars($payment['payment_method']); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Provider</span>
+                            <strong>
+                                <?php echo htmlspecialchars($payment['provider']); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Payment Status</span>
+                            <strong>
+                                <?php echo htmlspecialchars($payment['payment_status']); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Payment Amount</span>
+                            <strong class="admin-order-total">
+                                Rp<?php echo number_format($payment['payment_amount'], 0, ',', '.'); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Expiry Date</span>
+                            <strong>
+                                <?php echo htmlspecialchars($payment['expires_at']); ?>
+                            </strong>
+                        </div>
 
                     </div>
 
+                    <?php if (!empty($payment['payment_proof'])): ?>
+
+                        <div style="margin-top:20px;">
+
+                            <a
+                                href="../<?php echo htmlspecialchars($payment['payment_proof']); ?>"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="admin-action-button edit">
+
+                                <i class="fa-solid fa-image"></i>
+                                View Payment Proof
+
+                            </a>
+
+                        </div>
+
+                    <?php else: ?>
+
+                        <p>No payment proof uploaded.</p>
+
+                    <?php endif; ?>
+
+                    <?php if (!empty($payment['rejection_reason'])): ?>
+
+                        <div style="margin-top:15px;">
+                            <strong>Rejection Reason:</strong>
+                            <p>
+                                <?php echo htmlspecialchars($payment['rejection_reason']); ?>
+                            </p>
+                        </div>
+
+                    <?php endif; ?>
+
+                <?php else: ?>
+
+                    <p>No payment transaction found for this order.</p>
+
+                <?php endif; ?>
+
+            </section>
+
+            <!-- SHIPPING INFORMATION -->
+
+            <section class="admin-section">
+
+                <div class="admin-section-header">
+                    <div>
+                        <span class="admin-section-label">
+                            SHIPPING INFORMATION
+                        </span>
+                        <h2>Delivery Details</h2>
+                    </div>
+                </div>
+
+                <?php if ($shipping): ?>
+
+                    <div class="admin-order-info-grid">
+
+                        <div class="admin-order-info-card">
+                            <span>Courier</span>
+                            <strong>
+                                <?php echo htmlspecialchars($shipping['courier'] ?: '-'); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Tracking Number</span>
+                            <strong>
+                                <?php echo htmlspecialchars($shipping['tracking_number'] ?: '-'); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Shipping Status</span>
+                            <strong>
+                                <?php echo htmlspecialchars($shipping['shipping_status']); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Shipped At</span>
+                            <strong>
+                                <?php echo htmlspecialchars($shipping['shipped_at'] ?: '-'); ?>
+                            </strong>
+                        </div>
+
+                        <div class="admin-order-info-card">
+                            <span>Received At</span>
+                            <strong>
+                                <?php echo htmlspecialchars($shipping['received_at'] ?: '-'); ?>
+                            </strong>
+                        </div>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <p>Shipping information has not been added yet.</p>
+
+                <?php endif; ?>
+
+                <!-- SHIPPING FORM -->
+
+                <?php if (
+                    $order['status'] === 'Processing' &&
+                    $payment &&
+                    $payment['payment_status'] === 'Paid' &&
+                    (!$shipping || $shipping['shipping_status'] === 'Not Shipped')
+                ): ?>
+
+                    <form method="POST" class="admin-order-status-form">
+
+                        <div class="admin-status-select">
+
+                            <label for="courier">Select Courier</label>
+
+                            <select id="courier" name="courier" required>
+
+                                <option value="">-- Select Courier --</option>
+                                <option value="JNE">JNE</option>
+                                <option value="J&T Express">J&T Express</option>
+                                <option value="SiCepat">SiCepat</option>
+                                <option value="AnterAja">AnterAja</option>
+                                <option value="Pos Indonesia">Pos Indonesia</option>
+                                <option value="ID Express">ID Express</option>
+                                <option value="Other">Other</option>
+
+                            </select>
+
+                        </div>
+
+                        <div class="admin-status-select">
+
+                            <label for="tracking_number">Tracking Number / Resi</label>
+
+                            <input
+                                type="text"
+                                id="tracking_number"
+                                name="tracking_number"
+                                placeholder="Enter tracking number..."
+                                maxlength="150"
+                                required>
+
+                        </div>
+
+                        <button
+                            type="submit"
+                            name="ship_order"
+                            class="admin-form-submit"
+                            onclick="return confirm('Kirim pesanan ini sekarang?')">
+
+                            <i class="fa-solid fa-truck-fast"></i>
+                            Kirim Pesanan
+
+                        </button>
+
+                    </form>
+
+                <?php elseif ($order['status'] === 'Processing' && (!$payment || $payment['payment_status'] !== 'Paid')): ?>
+
+                    <p>Pesanan belum dapat dikirim karena pembayaran belum disetujui.</p>
+
+                <?php elseif ($order['status'] === 'Shipped'): ?>
+
+                    <p>Pesanan sudah dikirim. Menunggu konfirmasi penerimaan dari User.</p>
+
+                <?php elseif ($order['status'] === 'Completed'): ?>
+
+                    <p>Pesanan sudah selesai dan diterima oleh User.</p>
+
+                <?php endif; ?>
+
+            </section>
+
+            <!-- ORDER ITEMS -->
+
+            <section class="admin-section">
+
+                <div class="admin-section-header">
+                    <div>
+                        <span class="admin-section-label">
+                            ORDER ITEMS
+                        </span>
+                        <h2>Books Ordered</h2>
+                    </div>
                 </div>
 
                 <div class="admin-order-items">
@@ -541,26 +839,18 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                             <div class="admin-order-item">
 
                                 <img
-                                    src="../<?php echo htmlspecialchars(
-                                        $item['image']
-                                    ); ?>"
-                                    alt="<?php echo htmlspecialchars(
-                                        $item['title']
-                                    ); ?>"
+                                    src="../<?php echo htmlspecialchars($item['image']); ?>"
+                                    alt="<?php echo htmlspecialchars($item['title']); ?>"
                                     class="admin-order-item-cover">
 
                                 <div class="admin-order-item-info">
 
                                     <strong>
-                                        <?php echo htmlspecialchars(
-                                            $item['title']
-                                        ); ?>
+                                        <?php echo htmlspecialchars($item['title']); ?>
                                     </strong>
 
                                     <span>
-                                        <?php echo htmlspecialchars(
-                                            $item['author']
-                                        ); ?>
+                                        <?php echo htmlspecialchars($item['author']); ?>
                                     </span>
 
                                 </div>
@@ -572,12 +862,7 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                                     </span>
 
                                     <strong>
-                                        Rp<?php echo number_format(
-                                            $item['price'],
-                                            0,
-                                            ',',
-                                            '.'
-                                        ); ?>
+                                        Rp<?php echo number_format($item['price'], 0, ',', '.'); ?>
                                     </strong>
 
                                 </div>
@@ -589,17 +874,9 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
                     <?php else: ?>
 
                         <div class="admin-empty-books">
-
                             <i class="fa-solid fa-book-open"></i>
-
-                            <strong>
-                                No items found
-                            </strong>
-
-                            <span>
-                                This order does not contain any books.
-                            </span>
-
+                            <strong>No items found</strong>
+                            <span>This order does not contain any books.</span>
                         </div>
 
                     <?php endif; ?>
@@ -608,107 +885,78 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 
             </section>
 
-            <!-- Update Status -->
+            <!-- UPDATE ORDER STATUS -->
 
             <section class="admin-section">
 
                 <div class="admin-section-header">
-
                     <div>
-
                         <span class="admin-section-label">
                             ORDER STATUS
                         </span>
-
-                        <h2>
-                            Update Status
-                        </h2>
-
+                        <h2>Update Status</h2>
                     </div>
-
                 </div>
 
-                <form
-                    method="POST"
-                    class="admin-order-status-form">
+                <?php if (in_array($order['status'], ['Shipped', 'Completed'], true)): ?>
 
-                    <div class="admin-status-select">
+                    <p>
+                        Status pengiriman dan penyelesaian pesanan dikelola melalui fitur Shipping dan konfirmasi penerimaan User.
+                    </p>
 
-                        <label for="status">
-                            Current Status
-                        </label>
+                <?php else: ?>
 
-                        <select
-                            id="status"
-                            name="status"
-                            required>
+                    <form method="POST" class="admin-order-status-form">
 
-                            <option
-                                value="Pending"
-                                <?php echo $order['status'] === 'Pending'
-                                    ? 'selected'
-                                    : ''; ?>>
+                        <div class="admin-status-select">
 
-                                Pending
+                            <label for="status">Current Status</label>
 
-                            </option>
+                            <select id="status" name="status" required>
 
-                            <option
-                                value="Processing"
-                                <?php echo $order['status'] === 'Processing'
-                                    ? 'selected'
-                                    : ''; ?>>
+                                <option
+                                    value="Pending"
+                                    <?php echo $order['status'] === 'Pending' ? 'selected' : ''; ?>>
+                                    Pending
+                                </option>
 
-                                Processing
+                                <?php if ($payment && $payment['payment_status'] === 'Paid'): ?>
 
-                            </option>
+                                    <option
+                                        value="Processing"
+                                        <?php echo $order['status'] === 'Processing' ? 'selected' : ''; ?>>
+                                        Processing
+                                    </option>
 
-                            <option
-                                value="Shipped"
-                                <?php echo $order['status'] === 'Shipped'
-                                    ? 'selected'
-                                    : ''; ?>>
+                                <?php endif; ?>
 
-                                Shipped
+                                <?php if (!$payment || $payment['payment_status'] !== 'Paid'): ?>
 
-                            </option>
+                                    <option
+                                        value="Cancelled"
+                                        <?php echo $order['status'] === 'Cancelled' ? 'selected' : ''; ?>>
+                                        Cancelled
+                                    </option>
 
-                            <option
-                                value="Completed"
-                                <?php echo $order['status'] === 'Completed'
-                                    ? 'selected'
-                                    : ''; ?>>
+                                <?php endif; ?>
 
-                                Completed
+                            </select>
 
-                            </option>
+                        </div>
 
-                            <option
-                                value="Cancelled"
-                                <?php echo $order['status'] === 'Cancelled'
-                                    ? 'selected'
-                                    : ''; ?>>
+                        <button
+                            type="submit"
+                            name="update_status"
+                            class="admin-form-submit">
 
-                                Cancelled
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            Update Status
 
-                            </option>
+                        </button>
 
-                        </select>
+                    </form>
 
-                    </div>
-
-                    <button
-                        type="submit"
-                        name="update_status"
-                        class="admin-form-submit">
-
-                        <i class="fa-solid fa-floppy-disk"></i>
-
-                        Update Status
-
-                    </button>
-
-                </form>
+                <?php endif; ?>
 
             </section>
 
@@ -721,7 +969,5 @@ $itemsResult = mysqli_stmt_get_result($itemsStmt);
 </html>
 
 <?php
-
 mysqli_stmt_close($itemsStmt);
-
 ?>

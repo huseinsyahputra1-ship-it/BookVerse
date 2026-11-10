@@ -1,10 +1,11 @@
-
 <?php
-session_start();
+
+require_once __DIR__ . "/config/user-session.php";
 
 include "config/database.php";
 
 $status = $_GET['status'] ?? '';
+
 ?>
 
 <!DOCTYPE html>

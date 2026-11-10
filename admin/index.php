@@ -1,9 +1,29 @@
-
 <?php
 
-session_start();
-
 include "../config/database.php";
+
+// Gunakan session khusus Admin
+require_once __DIR__ . '/admin-session.php';
+
+// ================= ADMIN ACCESS =================
+
+if (!isset($_SESSION['user_id'])) {
+
+    header("Location: ../login.php");
+    exit();
+
+}
+
+if ($_SESSION['role'] !== 'admin') {
+
+    echo "<script>
+        alert('Akses ditolak! Halaman ini hanya untuk admin.');
+        window.location='../index.php';
+    </script>";
+
+    exit();
+
+}
 
 // ================= ADMIN ACCESS =================
 
@@ -154,7 +174,7 @@ $recentBooksQuery = mysqli_query(
             </span>
 
             <a
-                href="../logout.php"
+                href=" logout.php"
                 class="admin-logout">
 
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -200,6 +220,15 @@ $recentBooksQuery = mysqli_query(
 
                 </a>
 
+                <a
+                    href="categories.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-tags"></i>
+
+                    <span>Manage Categories</span>
+
+                </a>
 
                 <a
                     href="orders.php"
@@ -211,6 +240,27 @@ $recentBooksQuery = mysqli_query(
 
                 </a>
 
+                <a
+                    href="payment-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+
+                    <span>Payment Transactions</span>
+
+                </a>
+
+                <!-- RETURN MANAGEMENT -->
+
+                <a
+                    href="return-management.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-rotate-left"></i>
+
+                    <span>Return Management</span>
+
+                </a>
 
                 <a
                     href="users.php"
@@ -232,6 +282,19 @@ $recentBooksQuery = mysqli_query(
                     <i class="fa-solid fa-envelope"></i>
 
                     <span>Messages</span>
+
+                </a>
+
+
+                <!-- STOCK HISTORY -->
+
+                <a
+                    href="stock-history.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+
+                    <span>Stock History</span>
 
                 </a>
 

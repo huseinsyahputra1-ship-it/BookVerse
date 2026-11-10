@@ -1,0 +1,267 @@
+
+/* =========================================================
+   BOOKVERSE - ADMIN CATEGORY MANAGEMENT
+   ========================================================= */
+
+.category-management-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 25px;
+    align-items: start;
+}
+
+/* =========================================================
+   CATEGORY CARDS
+   ========================================================= */
+
+.category-form-card,
+.category-list-card {
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 14px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.04);
+}
+
+.category-form-card h2,
+.category-list-card h2 {
+    font-size: 19px;
+    margin-bottom: 8px;
+    color: #1e293b;
+}
+
+.category-description {
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 22px;
+}
+
+/* =========================================================
+   CATEGORY FORM
+   ========================================================= */
+
+.category-form-group {
+    margin-bottom: 20px;
+}
+
+.category-form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 9px;
+    color: #334155;
+}
+
+.category-form-group input {
+    width: 100%;
+    padding: 13px 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s;
+}
+
+.category-form-group input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.category-submit-button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 9px;
+    background: #2563eb;
+    color: white;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.category-submit-button:hover {
+    background: #1d4ed8;
+}
+
+.category-cancel-button {
+    display: block;
+    text-align: center;
+    margin-top: 12px;
+    color: #64748b;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+/* =========================================================
+   NOTIFICATION
+   ========================================================= */
+
+.category-notification {
+    padding: 14px 18px;
+    border-radius: 9px;
+    margin-bottom: 22px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.category-notification.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.category-notification.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* =========================================================
+   CATEGORY SUMMARY
+   ========================================================= */
+
+.category-summary {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #eff6ff;
+    padding: 18px;
+    border-radius: 11px;
+    margin-bottom: 22px;
+}
+
+.category-summary-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #dbeafe;
+    color: #2563eb;
+    border-radius: 10px;
+    font-size: 20px;
+}
+
+.category-summary span {
+    display: block;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.category-summary strong {
+    display: block;
+    color: #1e293b;
+    font-size: 23px;
+}
+
+/* =========================================================
+   CATEGORY TABLE
+   ========================================================= */
+
+.category-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.category-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 400px;
+}
+
+.category-table th,
+.category-table td {
+    padding: 15px 12px;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+}
+
+.category-table th {
+    color: #64748b;
+    font-weight: 600;
+    background: #f8fafc;
+}
+
+.category-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.category-name i {
+    color: #2563eb;
+}
+
+.category-book-count {
+    display: inline-block;
+    padding: 5px 10px;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* =========================================================
+   CATEGORY ACTIONS
+   ========================================================= */
+
+.category-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.category-action-button {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 7px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.category-action-button.edit {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.category-action-button.delete {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.category-empty {
+    text-align: center !important;
+    padding: 35px 15px !important;
+    color: #64748b;
+}
+
+.category-empty i {
+    display: block;
+    font-size: 30px;
+    margin-bottom: 10px;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1000px) {
+
+    .category-management-grid {
+        grid-template-columns: 1fr;
+    }
+
+}

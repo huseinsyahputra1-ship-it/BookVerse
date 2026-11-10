@@ -1,455 +1,330 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/config/user-session.php';
+require_once __DIR__ . '/config/database.php';
 
-include "config/database.php";
-
-/*
-|--------------------------------------------------------------------------
-| Pastikan User Sudah Login
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// USER ACCESS
+// =========================================================
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Pastikan Checkout dan Cart Tersedia
-|--------------------------------------------------------------------------
-*/
-
-if (
-    !isset($_SESSION['checkout']) ||
-    empty($_SESSION['cart'])
-) {
-    header("Location: cart.php");
-    exit;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Ambil Data Checkout
-|--------------------------------------------------------------------------
-*/
-
-$checkout = $_SESSION['checkout'];
-$cart = $_SESSION['cart'];
-
 $user_id = (int) $_SESSION['user_id'];
 
-$recipient_name = trim($checkout['recipient_name'] ?? '');
-$phone = trim($checkout['phone'] ?? '');
-$address = trim($checkout['address'] ?? '');
-$payment_method = $checkout['payment_method'] ?? '';
+// =========================================================
+// PROSES PEMILIHAN PROVIDER PEMBAYARAN
+// =========================================================
 
-/*
-|--------------------------------------------------------------------------
-| Validasi Metode Pembayaran
-|--------------------------------------------------------------------------
-*/
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-$allowed_payment_methods = [
-    'bank_transfer',
-    'e_wallet',
-    'cod'
-];
+    $order_id = (int) ($_POST['order_id'] ?? 0);
+    $provider = trim($_POST['provider'] ?? '');
 
-if (!in_array($payment_method, $allowed_payment_methods, true)) {
-    header("Location: checkout.php");
-    exit;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Hitung Total dari Cart
-|--------------------------------------------------------------------------
-*/
-
-$total_price = 0;
-
-foreach ($cart as $item) {
-
-    $quantity = (int) $item['quantity'];
-    $price = (float) $item['price'];
-
-    if ($quantity <= 0) {
-        header("Location: cart.php");
-        exit;
+    if ($order_id <= 0) {
+        die("ID pesanan tidak valid.");
     }
-
-    $total_price += $price * $quantity;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Cegah Transaksi Kosong
-|--------------------------------------------------------------------------
-*/
-
-if ($total_price <= 0) {
-    header("Location: cart.php");
-    exit;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Jika Belum Ada Order yang Diproses
-|--------------------------------------------------------------------------
-*/
-
-if (!isset($_SESSION['last_order'])) {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Generate Nomor Order
-    |--------------------------------------------------------------------------
-    */
-
-    $order_number =
-        'BV' .
-        date('YmdHis') .
-        random_int(100, 999);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Mulai Database Transaction
-    |--------------------------------------------------------------------------
-    */
 
     mysqli_begin_transaction($conn);
 
     try {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Kunci dan Periksa Stok Buku
-        |--------------------------------------------------------------------------
-        */
-
-        // Urutkan ID buku agar penguncian lebih konsisten
-        $book_ids = array_map('intval', array_keys($cart));
-        sort($book_ids);
-
-        $stock_stmt = mysqli_prepare(
-            $conn,
-            "SELECT stock
-             FROM books
-             WHERE id = ?
-             FOR UPDATE"
-        );
-
-        if (!$stock_stmt) {
-            throw new Exception(
-                "Gagal memeriksa stok buku."
-            );
-        }
-
-        foreach ($book_ids as $book_id) {
-
-            $quantity = (int) $cart[$book_id]['quantity'];
-
-            mysqli_stmt_bind_param(
-                $stock_stmt,
-                "i",
-                $book_id
-            );
-
-            if (!mysqli_stmt_execute($stock_stmt)) {
-                throw new Exception(
-                    "Gagal mengambil stok buku."
-                );
-            }
-
-            $stock_result = mysqli_stmt_get_result($stock_stmt);
-            $stock_data = mysqli_fetch_assoc($stock_result);
-
-            if (!$stock_data) {
-                throw new Exception(
-                    "Salah satu buku sudah tidak tersedia."
-                );
-            }
-
-            $available_stock = (int) $stock_data['stock'];
-
-            if (
-                $available_stock <= 0 ||
-                $quantity > $available_stock
-            ) {
-                throw new Exception(
-                    "Stok buku " .
-                    $cart[$book_id]['title'] .
-                    " tidak mencukupi. Silakan periksa keranjang."
-                );
-            }
-        }
-
-        mysqli_stmt_close($stock_stmt);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Kurangi Stok Buku
-        |--------------------------------------------------------------------------
-        */
-
-        $update_stock_stmt = mysqli_prepare(
-            $conn,
-            "UPDATE books
-             SET stock = stock - ?
-             WHERE id = ?
-             AND stock >= ?"
-        );
-
-        if (!$update_stock_stmt) {
-            throw new Exception(
-                "Gagal menyiapkan pengurangan stok."
-            );
-        }
-
-        foreach ($cart as $item) {
-
-            $book_id = (int) $item['id'];
-            $quantity = (int) $item['quantity'];
-
-            mysqli_stmt_bind_param(
-                $update_stock_stmt,
-                "iii",
-                $quantity,
-                $book_id,
-                $quantity
-            );
-
-            if (!mysqli_stmt_execute($update_stock_stmt)) {
-                throw new Exception(
-                    "Gagal mengurangi stok buku."
-                );
-            }
-
-            if (mysqli_stmt_affected_rows($update_stock_stmt) !== 1) {
-                throw new Exception(
-                    "Stok buku berubah. Silakan periksa keranjang dan coba kembali."
-                );
-            }
-        }
-
-        mysqli_stmt_close($update_stock_stmt);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Simpan Order
-        |--------------------------------------------------------------------------
-        */
+        // AMBIL ORDER DAN PASTIKAN MILIK USER
 
         $order_stmt = mysqli_prepare(
             $conn,
-            "INSERT INTO orders
-            (
-                user_id,
-                recipient_name,
-                phone,
-                address,
-                payment_method,
-                order_number,
-                total_price,
-                status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')"
+            "SELECT *
+            FROM orders
+            WHERE id = ? AND user_id = ?
+            FOR UPDATE"
         );
 
         if (!$order_stmt) {
-            throw new Exception(
-                "Gagal menyiapkan data pesanan."
-            );
+            throw new Exception("Gagal mengambil data pesanan.");
         }
 
         mysqli_stmt_bind_param(
             $order_stmt,
-            "isssssd",
-            $user_id,
-            $recipient_name,
-            $phone,
-            $address,
-            $payment_method,
-            $order_number,
-            $total_price
+            "ii",
+            $order_id,
+            $user_id
         );
 
-        if (!mysqli_stmt_execute($order_stmt)) {
-            throw new Exception(
-                "Gagal menyimpan pesanan."
-            );
-        }
+        mysqli_stmt_execute($order_stmt);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ambil ID Order
-        |--------------------------------------------------------------------------
-        */
-
-        $order_id = mysqli_insert_id($conn);
+        $order_result = mysqli_stmt_get_result($order_stmt);
+        $order_data = mysqli_fetch_assoc($order_result);
 
         mysqli_stmt_close($order_stmt);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Simpan Order Items
-        |--------------------------------------------------------------------------
-        */
+        if (!$order_data) {
+            throw new Exception("Pesanan tidak ditemukan.");
+        }
 
-        $item_stmt = mysqli_prepare(
+        // VALIDASI PROVIDER
+
+        $payment_method = $order_data['payment_method'];
+
+        $allowed_providers = [
+            'bank_transfer' => [
+                'BCA',
+                'Mandiri',
+                'BRI'
+            ],
+            'e_wallet' => [
+                'GoPay',
+                'DANA',
+                'OVO'
+            ]
+        ];
+
+        if (
+            !isset($allowed_providers[$payment_method]) ||
+            !in_array($provider, $allowed_providers[$payment_method], true)
+        ) {
+            throw new Exception("Provider pembayaran tidak valid.");
+        }
+
+        // AMBIL TRANSAKSI PEMBAYARAN YANG SUDAH DIBUAT DI CHECKOUT
+
+        $payment_stmt = mysqli_prepare(
             $conn,
-            "INSERT INTO order_items
-            (
-                order_id,
-                book_id,
-                quantity,
-                price
-            )
-            VALUES (?, ?, ?, ?)"
+            "SELECT *
+            FROM payment_transactions
+            WHERE order_id = ?
+            LIMIT 1
+            FOR UPDATE"
         );
 
-        if (!$item_stmt) {
+        if (!$payment_stmt) {
+            throw new Exception("Gagal mengambil transaksi pembayaran.");
+        }
+
+        mysqli_stmt_bind_param(
+            $payment_stmt,
+            "i",
+            $order_id
+        );
+
+        mysqli_stmt_execute($payment_stmt);
+
+        $payment_result = mysqli_stmt_get_result($payment_stmt);
+        $payment_data = mysqli_fetch_assoc($payment_result);
+
+        mysqli_stmt_close($payment_stmt);
+
+        if (!$payment_data) {
+            throw new Exception("Transaksi pembayaran tidak ditemukan.");
+        }
+
+        // JANGAN UBAH TRANSAKSI YANG SUDAH DIPROSES
+
+        if ($payment_data['payment_status'] !== 'Pending') {
             throw new Exception(
-                "Gagal menyiapkan item pesanan."
+                "Transaksi ini sudah diproses. Silakan cek halaman Pesanan Saya."
             );
         }
 
-        foreach ($cart as $item) {
-
-            $book_id = (int) $item['id'];
-            $quantity = (int) $item['quantity'];
-            $price = (float) $item['price'];
-
-            mysqli_stmt_bind_param(
-                $item_stmt,
-                "iiid",
-                $order_id,
-                $book_id,
-                $quantity,
-                $price
+        if (!empty($payment_data['payment_proof'])) {
+            throw new Exception(
+                "Bukti pembayaran sudah pernah diunggah."
             );
-
-            if (!mysqli_stmt_execute($item_stmt)) {
-                throw new Exception(
-                    "Gagal menyimpan item pesanan."
-                );
-            }
         }
 
-        mysqli_stmt_close($item_stmt);
+        // UPDATE PROVIDER, BUKAN MEMBUAT TRANSAKSI BARU
 
-        /*
-        |--------------------------------------------------------------------------
-        | Commit Transaction
-        |--------------------------------------------------------------------------
-        */
+        $update_stmt = mysqli_prepare(
+            $conn,
+            "UPDATE payment_transactions
+            SET provider = ?, updated_at = NOW()
+            WHERE order_id = ?"
+        );
 
-        mysqli_commit($conn);
+        if (!$update_stmt) {
+            throw new Exception("Gagal menyiapkan pembaruan pembayaran.");
+        }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Simpan Data Struk ke Session
-        |--------------------------------------------------------------------------
-        */
+        mysqli_stmt_bind_param(
+            $update_stmt,
+            "si",
+            $provider,
+            $order_id
+        );
+
+        if (!mysqli_stmt_execute($update_stmt)) {
+            throw new Exception("Gagal memperbarui provider pembayaran.");
+        }
+
+        mysqli_stmt_close($update_stmt);
+
+        // AMBIL ITEM PESANAN DARI DATABASE
+
+        $items_stmt = mysqli_prepare(
+            $conn,
+            "SELECT
+                oi.book_id,
+                oi.quantity,
+                oi.price,
+                b.title,
+                b.author
+            FROM order_items oi
+            JOIN books b ON b.id = oi.book_id
+            WHERE oi.order_id = ?"
+        );
+
+        if (!$items_stmt) {
+            throw new Exception("Gagal mengambil detail buku.");
+        }
+
+        mysqli_stmt_bind_param(
+            $items_stmt,
+            "i",
+            $order_id
+        );
+
+        mysqli_stmt_execute($items_stmt);
+
+        $items_result = mysqli_stmt_get_result($items_stmt);
 
         $receipt_items = [];
 
-        foreach ($cart as $item) {
+        while ($item = mysqli_fetch_assoc($items_result)) {
+
+            $quantity = (int) $item['quantity'];
+            $price = (float) $item['price'];
 
             $receipt_items[] = [
                 'title' => $item['title'],
-                'author' => $item['author'],
-                'quantity' => (int) $item['quantity'],
-                'price' => (float) $item['price'],
-                'subtotal' =>
-                    (float) $item['price'] *
-                    (int) $item['quantity']
+                'author' => $item['author'] ?? '',
+                'quantity' => $quantity,
+                'price' => $price,
+                'subtotal' => $price * $quantity
             ];
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Simpan Order Terakhir
-        |--------------------------------------------------------------------------
-        */
+        mysqli_stmt_close($items_stmt);
+
+        if (empty($receipt_items)) {
+            throw new Exception("Detail buku dalam pesanan tidak ditemukan.");
+        }
+
+        mysqli_commit($conn);
+
+        // SIMPAN DATA STRUK KE SESSION
 
         $_SESSION['last_order'] = [
-            'order_id' => $order_id,
-            'order_number' => $order_number,
-            'recipient_name' => $recipient_name,
-            'phone' => $phone,
-            'address' => $address,
+            'order_id' => (int) $order_data['id'],
+            'order_number' => $order_data['order_number'],
+            'transaction_code' => $payment_data['transaction_code'],
+            'recipient_name' => $order_data['recipient_name'],
+            'phone' => $order_data['phone'],
+            'address' => $order_data['address'],
             'payment_method' => $payment_method,
-            'total_price' => $total_price,
-            'status' => 'Pending',
-            'created_at' => date('Y-m-d H:i:s'),
+            'provider' => $provider,
+            'total_price' => (float) $order_data['total_price'],
+            'status' => $order_data['status'],
+            'payment_status' => $payment_data['payment_status'],
+            'created_at' => $order_data['created_at'],
             'items' => $receipt_items
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Kosongkan Cart
-        |--------------------------------------------------------------------------
-        */
+        // KERANJANG DIHAPUS SETELAH PROVIDER DIPILIH
 
         unset($_SESSION['cart']);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Bersihkan Checkout Session
-        |--------------------------------------------------------------------------
-        */
-
         unset($_SESSION['checkout']);
 
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
 
         mysqli_rollback($conn);
 
         die(
-            "Pesanan belum berhasil dibuat: " .
+            "Gagal memproses pembayaran: " .
             htmlspecialchars($e->getMessage()) .
-            "<br><br><a href='cart.php'>Kembali ke Keranjang</a>"
+            "<br><br><a href='orders.php'>Kembali ke Pesanan Saya</a>"
         );
     }
+
+} elseif (!isset($_SESSION['last_order'])) {
+
+    header("Location: orders.php");
+    exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Ambil Data Order Terakhir
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// ORDER INFORMATION
+// =========================================================
 
 $order = $_SESSION['last_order'];
 
-/*
-|--------------------------------------------------------------------------
-| Format Metode Pembayaran
-|--------------------------------------------------------------------------
-*/
-
 $payment_labels = [
-    'bank_transfer' => 'Bank Transfer',
-    'e_wallet' => 'E-Wallet',
-    'cod' => 'Cash on Delivery'
+    'bank_transfer' => 'Bank Virtual Account',
+    'e_wallet' => 'E-Wallet'
 ];
 
 $payment_label =
     $payment_labels[$order['payment_method']]
     ?? 'Payment Simulation';
 
-/*
-|--------------------------------------------------------------------------
-| Format Tanggal
-|--------------------------------------------------------------------------
-*/
+$provider_label = $order['provider'] ?? '-';
 
 $order_date = date(
     'd F Y, H:i',
     strtotime($order['created_at'])
 );
+
+// =========================================================
+// CEK STATUS PEMBAYARAN TERBARU DARI DATABASE
+// =========================================================
+
+$status_stmt = mysqli_prepare(
+    $conn,
+    "SELECT payment_status, payment_proof, rejection_reason
+    FROM payment_transactions
+    WHERE order_id = ?
+    AND EXISTS (
+        SELECT 1 FROM orders
+        WHERE orders.id = payment_transactions.order_id
+        AND orders.user_id = ?
+    )
+    LIMIT 1"
+);
+
+mysqli_stmt_bind_param(
+    $status_stmt,
+    "ii",
+    $order['order_id'],
+    $user_id
+);
+
+mysqli_stmt_execute($status_stmt);
+
+$status_result = mysqli_stmt_get_result($status_stmt);
+$payment_data = mysqli_fetch_assoc($status_result);
+
+mysqli_stmt_close($status_stmt);
+
+if (!$payment_data) {
+    die("Data pembayaran tidak ditemukan.");
+}
+
+$current_payment_status = $payment_data['payment_status'];
+$payment_proof = $payment_data['payment_proof'];
+$rejection_reason = $payment_data['rejection_reason'] ?? '';
+
+$order['payment_status'] = $current_payment_status;
+
+// =========================================================
+// CSRF TOKEN
+// =========================================================
+
+if (
+    empty($_SESSION['payment_proof_token']) ||
+    in_array($current_payment_status, ['Waiting Verification', 'Paid'], true)
+) {
+    $_SESSION['payment_proof_token'] = bin2hex(random_bytes(32));
+}
 
 ?>
 
@@ -464,44 +339,33 @@ $order_date = date(
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Payment Successful - BookVerse</title>
+    <title>Order Created - BookVerse</title>
 
-    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
 
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com">
-
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-    <!-- Font Awesome -->
-
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <!-- QR Code Library -->
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- Existing Global CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">
 
-    <link
-        rel="stylesheet"
-        href="assets/css/style.css">
+    <!-- CSS KHUSUS UPLOAD BUKTI PEMBAYARAN -->
+
+    <link rel="stylesheet" href="assets/css/payment-proof.css">
 
 </head>
 
 <body>
 
-    <!-- ================= HEADER ================= -->
+    <!-- HEADER -->
 
     <header class="header">
 
@@ -518,7 +382,6 @@ $order_date = date(
                     <div class="logo-text">
 
                         <h2>BookVerse</h2>
-
                         <p>Every Book Has a Story</p>
 
                     </div>
@@ -552,21 +415,13 @@ $order_date = date(
 
                     </div>
 
-                    <button
-                        type="button"
-                        class="icon-btn">
-
+                    <button type="button" class="icon-btn">
                         <i class="fa-regular fa-heart"></i>
-
                     </button>
 
                     <a href="cart.php" class="icon-btn">
-
                         <i class="fa-solid fa-cart-shopping"></i>
-
                     </a>
-
-                    <!-- Profile -->
 
                     <div class="profile-menu">
 
@@ -578,11 +433,7 @@ $order_date = date(
                             <i class="fa-solid fa-user"></i>
 
                             <span>
-                                <?php
-                                echo htmlspecialchars(
-                                    $_SESSION['fullname'] ?? ''
-                                );
-                                ?>
+                                <?php echo htmlspecialchars($_SESSION['fullname'] ?? ''); ?>
                             </span>
 
                             <i class="fa-solid fa-chevron-down"></i>
@@ -600,19 +451,11 @@ $order_date = date(
                                 <div>
 
                                     <strong>
-                                        <?php
-                                        echo htmlspecialchars(
-                                            $_SESSION['fullname'] ?? ''
-                                        );
-                                        ?>
+                                        <?php echo htmlspecialchars($_SESSION['fullname'] ?? ''); ?>
                                     </strong>
 
                                     <small>
-                                        <?php
-                                        echo htmlspecialchars(
-                                            $_SESSION['email'] ?? ''
-                                        );
-                                        ?>
+                                        <?php echo htmlspecialchars($_SESSION['email'] ?? ''); ?>
                                     </small>
 
                                 </div>
@@ -622,31 +465,20 @@ $order_date = date(
                             <hr>
 
                             <a href="profile.php">
-
                                 <i class="fa-solid fa-user"></i>
-
                                 <span>Profile</span>
-
                             </a>
 
                             <a href="orders.php">
-
                                 <i class="fa-solid fa-box"></i>
-
                                 <span>Pesanan Saya</span>
-
                             </a>
 
                             <hr>
 
-                            <a
-                                href="logout.php"
-                                class="logout-link">
-
+                            <a href="logout.php" class="logout-link">
                                 <i class="fa-solid fa-right-from-bracket"></i>
-
                                 <span>Logout</span>
-
                             </a>
 
                         </div>
@@ -661,7 +493,7 @@ $order_date = date(
 
     </header>
 
-    <!-- ================= PAYMENT SUCCESS ================= -->
+    <!-- ORDER CREATED -->
 
     <main class="payment-success-page">
 
@@ -671,85 +503,65 @@ $order_date = date(
 
                 <div class="payment-success-card">
 
-                    <!-- Success Header -->
-
                     <div class="success-header">
 
                         <div class="success-icon">
-
                             <i class="fa-solid fa-check"></i>
-
                         </div>
 
-                        <h1>Payment Successful!</h1>
+                        <h1>Order Successfully Created!</h1>
 
                         <p>
-                            Your BookVerse order has been successfully created.
+                            Your order has been created and is waiting
+                            for payment verification.
                         </p>
 
                         <span class="simulation-badge">
-
                             <i class="fa-solid fa-shield-halved"></i>
-
                             Payment Simulation
-
                         </span>
 
                     </div>
 
-                    <!-- Order Information -->
+                    <!-- ORDER INFORMATION -->
 
                     <div class="order-info">
 
                         <div class="order-info-box">
-
                             <span>Order Number</span>
-
-                            <strong>
-                                <?php
-                                echo htmlspecialchars($order['order_number']);
-                                ?>
-                            </strong>
-
+                            <strong><?php echo htmlspecialchars($order['order_number']); ?></strong>
                         </div>
 
                         <div class="order-info-box">
-
                             <span>Order Date</span>
-
-                            <strong>
-                                <?php echo htmlspecialchars($order_date); ?>
-                            </strong>
-
+                            <strong><?php echo htmlspecialchars($order_date); ?></strong>
                         </div>
 
                         <div class="order-info-box">
-
                             <span>Payment Method</span>
-
-                            <strong>
-                                <?php echo htmlspecialchars($payment_label); ?>
-                            </strong>
-
+                            <strong><?php echo htmlspecialchars($payment_label); ?></strong>
                         </div>
 
                         <div class="order-info-box">
+                            <span>Payment Provider</span>
+                            <strong><?php echo htmlspecialchars($provider_label); ?></strong>
+                        </div>
 
+                        <div class="order-info-box">
                             <span>Order Status</span>
+                            <strong>Pending</strong>
+                        </div>
 
-                            <strong>
-                                <?php echo htmlspecialchars($order['status']); ?>
-                            </strong>
-
+                        <div class="order-info-box">
+                            <span>Payment Status</span>
+                            <strong><?php echo htmlspecialchars($current_payment_status); ?></strong>
                         </div>
 
                     </div>
 
-                    <!-- ================= DIGITAL ORDER RECEIPT ================= -->
+                    <!-- DIGITAL RECEIPT -->
 
                     <div class="receipt-section">
-
-                        <!-- BookVerse Branding -->
 
                         <div class="receipt-brand">
 
@@ -758,74 +570,50 @@ $order_date = date(
                                 alt="BookVerse Logo">
 
                             <div>
-
                                 <h2>BookVerse</h2>
-
                                 <p>Every Book Has a Story</p>
-
                             </div>
 
                         </div>
-
-                        <!-- Receipt Heading -->
 
                         <div class="receipt-heading">
 
                             <div>
-
                                 <span>BOOKVERSE INVOICE</span>
-
                                 <h3>Digital Order Receipt</h3>
-
-                                <p>
-                                    Thank you for shopping with BookVerse.
-                                </p>
-
+                                <p>Thank you for shopping with BookVerse.</p>
                             </div>
 
                             <div>
-
-                                <i class="fa-solid fa-circle-check"></i>
-
-                                Order Created
-
+                                <i class="fa-solid fa-clock"></i>
+                                Payment Pending
                             </div>
 
                         </div>
-
-                        <!-- Order Number -->
 
                         <div class="receipt-order-number">
 
                             <span>ORDER NUMBER</span>
 
                             <strong>
-                                <?php
-                                echo htmlspecialchars($order['order_number']);
-                                ?>
+                                <?php echo htmlspecialchars($order['order_number']); ?>
                             </strong>
 
                         </div>
-
-                        <!-- QR Code -->
 
                         <div class="receipt-qr-section">
 
                             <div id="orderQRCode"></div>
 
                             <div>
-
                                 <strong>Order Reference QR</strong>
-
                                 <p>
-                                    Scan this QR Code to identify your BookVerse order.
+                                    Scan this QR Code to identify your
+                                    BookVerse order.
                                 </p>
-
                             </div>
 
                         </div>
-
-                        <!-- Order Details -->
 
                         <h3>Order Details</h3>
 
@@ -838,50 +626,27 @@ $order_date = date(
                                     <div class="receipt-item-info">
 
                                         <strong>
-                                            <?php
-                                            echo htmlspecialchars($item['title']);
-                                            ?>
+                                            <?php echo htmlspecialchars($item['title']); ?>
                                         </strong>
 
                                         <span>
-                                            <?php
-                                            echo htmlspecialchars($item['author']);
-                                            ?>
+                                            <?php echo htmlspecialchars($item['author']); ?>
                                         </span>
 
                                         <span>
                                             Harga satuan: Rp<?php
-                                            echo number_format(
-                                                $item['price'],
-                                                0,
-                                                ',',
-                                                '.'
-                                            );
+                                            echo number_format($item['price'], 0, ',', '.');
                                             ?>
                                         </span>
 
                                     </div>
 
                                     <div class="receipt-item-quantity">
-
-                                        <?php
-                                        echo (int) $item['quantity'];
-                                        ?>
-                                        ×
-
+                                        <?php echo (int) $item['quantity']; ?> ×
                                     </div>
 
                                     <div class="receipt-item-price">
-
-                                        Rp<?php
-                                        echo number_format(
-                                            $item['subtotal'],
-                                            0,
-                                            ',',
-                                            '.'
-                                        );
-                                        ?>
-
+                                        Rp<?php echo number_format($item['subtotal'], 0, ',', '.'); ?>
                                     </div>
 
                                 </div>
@@ -890,109 +655,215 @@ $order_date = date(
 
                         </div>
 
-                        <!-- Payment Summary -->
-
                         <div class="receipt-total">
 
                             <div class="receipt-total-row">
-
                                 <span>Subtotal</span>
-
                                 <strong>
-                                    Rp<?php
-                                    echo number_format(
-                                        $order['total_price'],
-                                        0,
-                                        ',',
-                                        '.'
-                                    );
-                                    ?>
+                                    Rp<?php echo number_format($order['total_price'], 0, ',', '.'); ?>
                                 </strong>
-
                             </div>
 
                             <div class="receipt-total-row">
-
                                 <span>Delivery</span>
-
                                 <strong>Free</strong>
-
                             </div>
 
                             <div class="receipt-total-row receipt-grand-total">
-
                                 <span>Total Payment</span>
-
                                 <strong>
-                                    Rp<?php
-                                    echo number_format(
-                                        $order['total_price'],
-                                        0,
-                                        ',',
-                                        '.'
-                                    );
-                                    ?>
+                                    Rp<?php echo number_format($order['total_price'], 0, ',', '.'); ?>
                                 </strong>
-
                             </div>
 
                         </div>
 
                     </div>
 
-                    <!-- ================= SHIPPING INFORMATION ================= -->
+                    <!-- SHIPPING INFORMATION -->
 
                     <div class="shipping-section">
 
                         <h3>Shipping Information</h3>
 
                         <div class="shipping-row">
-
-                            <span class="shipping-label">
-                                Recipient
-                            </span>
-
+                            <span class="shipping-label">Recipient</span>
                             <span class="shipping-value">
-                                <?php
-                                echo htmlspecialchars($order['recipient_name']);
-                                ?>
+                                <?php echo htmlspecialchars($order['recipient_name']); ?>
                             </span>
-
                         </div>
 
                         <div class="shipping-row">
-
-                            <span class="shipping-label">
-                                Phone
-                            </span>
-
+                            <span class="shipping-label">Phone</span>
                             <span class="shipping-value">
-                                <?php
-                                echo htmlspecialchars($order['phone']);
-                                ?>
+                                <?php echo htmlspecialchars($order['phone']); ?>
                             </span>
-
                         </div>
 
                         <div class="shipping-row">
-
-                            <span class="shipping-label">
-                                Address
-                            </span>
-
+                            <span class="shipping-label">Address</span>
                             <span class="shipping-value">
-                                <?php
-                                echo nl2br(
-                                    htmlspecialchars($order['address'])
-                                );
-                                ?>
+                                <?php echo nl2br(htmlspecialchars($order['address'])); ?>
                             </span>
-
                         </div>
 
                     </div>
 
-                    <!-- Actions -->
+                    <!-- UPLOAD PAYMENT PROOF -->
+
+                    <div class="payment-proof-section">
+
+                        <div class="payment-proof-heading">
+
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                            <h3>Bukti Pembayaran</h3>
+
+                            <p>
+                                Silakan unggah bukti pembayaran untuk
+                                melanjutkan proses verifikasi pesanan.
+                            </p>
+
+                        </div>
+
+                        <?php if ($current_payment_status === 'Paid'): ?>
+
+                            <div class="proof-status proof-success">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Pembayaran sudah berhasil diverifikasi Admin.
+                            </div>
+
+                        <?php elseif ($current_payment_status === 'Waiting Verification'): ?>
+
+                            <div class="proof-status proof-pending">
+                                <i class="fa-solid fa-hourglass-half"></i>
+                                Bukti pembayaran berhasil dikirim dan sedang menunggu verifikasi Admin.
+                            </div>
+
+                            <?php if (!empty($payment_proof)): ?>
+
+                                <a
+                                    href="<?php echo htmlspecialchars($payment_proof); ?>"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="proof-preview-link">
+
+                                    <i class="fa-solid fa-image"></i>
+                                    Lihat Bukti Pembayaran
+
+                                </a>
+
+                            <?php endif; ?>
+
+                        <?php elseif ($current_payment_status === 'Expired'): ?>
+
+                            <div class="proof-status proof-error">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                Batas waktu pembayaran sudah berakhir.
+                            </div>
+
+                        <?php elseif ($current_payment_status === 'Rejected'): ?>
+
+                            <div class="proof-status proof-error">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                Bukti pembayaran ditolak Admin.
+                                <?php if (!empty($rejection_reason)): ?>
+                                    <p>
+                                        Alasan:
+                                        <?php echo htmlspecialchars($rejection_reason); ?>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
+
+                            <form
+                                action="payment-proof.php"
+                                method="POST"
+                                enctype="multipart/form-data"
+                                class="payment-proof-form">
+
+                                <input
+                                    type="hidden"
+                                    name="order_id"
+                                    value="<?php echo (int) $order['order_id']; ?>">
+
+                                <input
+                                    type="hidden"
+                                    name="csrf_token"
+                                    value="<?php echo htmlspecialchars($_SESSION['payment_proof_token']); ?>">
+
+                                <label for="payment_proof">
+                                    Unggah ulang bukti pembayaran
+                                </label>
+
+                                <input
+                                    type="file"
+                                    name="payment_proof"
+                                    id="payment_proof"
+                                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                                    required>
+
+                                <small>
+                                    Format JPG, JPEG, PNG. Maksimal 5 MB.
+                                </small>
+
+                                <button type="submit" class="proof-submit-btn">
+                                    <i class="fa-solid fa-upload"></i>
+                                    Kirim Ulang Bukti Pembayaran
+                                </button>
+
+                            </form>
+
+                        <?php elseif ($current_payment_status === 'Pending'): ?>
+
+                            <form
+                                action="payment-proof.php"
+                                method="POST"
+                                enctype="multipart/form-data"
+                                class="payment-proof-form">
+
+                                <input
+                                    type="hidden"
+                                    name="order_id"
+                                    value="<?php echo (int) $order['order_id']; ?>">
+
+                                <input
+                                    type="hidden"
+                                    name="csrf_token"
+                                    value="<?php echo htmlspecialchars($_SESSION['payment_proof_token']); ?>">
+
+                                <label for="payment_proof">
+                                    Pilih Bukti Pembayaran
+                                </label>
+
+                                <input
+                                    type="file"
+                                    name="payment_proof"
+                                    id="payment_proof"
+                                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                                    required>
+
+                                <small>
+                                    Format JPG, JPEG, PNG. Maksimal 5 MB.
+                                </small>
+
+                                <button type="submit" class="proof-submit-btn">
+                                    <i class="fa-solid fa-upload"></i>
+                                    Kirim Bukti Pembayaran
+                                </button>
+
+                            </form>
+
+                        <?php else: ?>
+
+                            <div class="proof-status proof-error">
+                                Status pembayaran tidak memungkinkan upload bukti.
+                            </div>
+
+                        <?php endif; ?>
+
+                    </div>
+
+                    <!-- ACTIONS -->
 
                     <div class="success-actions">
 
@@ -1002,7 +873,6 @@ $order_date = date(
                             class="success-action-btn">
 
                             <i class="fa-solid fa-print"></i>
-
                             Print / Save PDF
 
                         </button>
@@ -1012,7 +882,6 @@ $order_date = date(
                             class="success-action-btn success-action-primary">
 
                             <i class="fa-solid fa-box"></i>
-
                             Lihat Pesanan
 
                         </a>
@@ -1022,20 +891,19 @@ $order_date = date(
                             class="success-action-btn success-action-secondary">
 
                             <i class="fa-solid fa-book"></i>
-
                             Kembali Belanja
 
                         </a>
 
                     </div>
 
-                    <!-- Simulation Notice -->
-
                     <p class="success-note">
 
                         <i class="fa-solid fa-circle-info"></i>
 
-                        This is a simulated payment receipt for BookVerse learning purposes. No real-money transactions have taken place.
+                        This is a simulated payment receipt for BookVerse
+                        learning purposes. No real-money transactions
+                        have taken place.
 
                     </p>
 
@@ -1047,7 +915,7 @@ $order_date = date(
 
     </main>
 
-    <!-- ================= FOOTER ================= -->
+    <!-- FOOTER -->
 
     <footer class="footer">
 
@@ -1075,12 +943,10 @@ $order_date = date(
                     <h3>Quick Links</h3>
 
                     <ul>
-
                         <li><a href="index.php">Home</a></li>
                         <li><a href="books.php">Books</a></li>
                         <li><a href="categories.php">Categories</a></li>
                         <li><a href="about.php">About</a></li>
-
                     </ul>
 
                 </div>
@@ -1090,9 +956,7 @@ $order_date = date(
                     <h3>Contact</h3>
 
                     <p>Email : info@bookverse.com</p>
-
                     <p>Phone : +62 812 3456 7890</p>
-
                     <p>Jakarta, Indonesia</p>
 
                 </div>
@@ -1100,20 +964,17 @@ $order_date = date(
             </div>
 
             <div class="footer-bottom">
-
-                <p>
-                    © 2026 BookVerse. All Rights Reserved.
-                </p>
-
+                <p>© 2026 BookVerse. All Rights Reserved.</p>
             </div>
 
         </div>
 
     </footer>
 
-    <!-- QR Code Generator -->
+    <!-- QR CODE GENERATOR -->
 
     <script>
+
     document.addEventListener("DOMContentLoaded", function () {
 
         const qrContainer = document.getElementById("orderQRCode");
@@ -1142,6 +1003,7 @@ $order_date = date(
         }
 
     });
+
     </script>
 
     <script src="assets/js/script.js"></script>

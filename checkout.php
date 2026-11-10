@@ -1,26 +1,22 @@
-
 <?php
 
-session_start();
+require_once __DIR__ . "/config/user-session.php";
+require_once __DIR__ . "/config/database.php";
 
-include "config/database.php";
-
-/*
-|--------------------------------------------------------------------------
-| Pastikan User Sudah Login
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// USER LOGIN
+// =========================================================
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Proses Data Checkout
-|--------------------------------------------------------------------------
-*/
+$user_id = (int) $_SESSION['user_id'];
+
+// =========================================================
+// PROSES CHECKOUT
+// =========================================================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -31,8 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $allowed_payment_methods = [
         'bank_transfer',
-        'e_wallet',
-        'cod'
+        'e_wallet'
     ];
 
     if (
@@ -41,26 +36,279 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $address === '' ||
         !in_array($payment_method, $allowed_payment_methods, true)
     ) {
-        header("Location: checkout.php");
+        echo "<script>
+            alert('Data checkout tidak valid!');
+            window.location='checkout.php';
+        </script>";
         exit;
     }
 
-    $_SESSION['checkout'] = [
-        'recipient_name' => $recipient_name,
-        'phone' => $phone,
-        'address' => $address,
-        'payment_method' => $payment_method
-    ];
+    $cart = $_SESSION['cart'] ?? [];
 
-    header("Location: payment.php");
-    exit;
+    if (empty($cart)) {
+        header("Location: cart.php");
+        exit;
+    }
+
+    // =====================================================
+    // HITUNG TOTAL PESANAN
+    // =====================================================
+
+    $total_price = 0;
+
+    foreach ($cart as $item) {
+
+        $quantity = (int) ($item['quantity'] ?? 0);
+        $price = (float) ($item['price'] ?? 0);
+
+        if ($quantity <= 0 || $price < 0) {
+            die("Data keranjang tidak valid.");
+        }
+
+        $total_price += $quantity * $price;
+    }
+
+    if ($total_price <= 0) {
+        die("Total pesanan tidak valid.");
+    }
+
+    // =====================================================
+    // GENERATE NOMOR ORDER DAN TRANSAKSI
+    // =====================================================
+
+    $order_number = 'BV' . date('YmdHis') . random_int(100, 999);
+
+    $transaction_code = 'PAY' . date('YmdHis') . random_int(1000, 9999);
+
+    $payment_status = 'Pending';
+
+    $provider = 'Belum Dipilih';
+
+    $expires_at = date(
+        'Y-m-d H:i:s',
+        strtotime('+24 hours')
+    );
+
+    // =====================================================
+    // DATABASE TRANSACTION
+    // =====================================================
+
+    mysqli_begin_transaction($conn);
+
+    try {
+
+        // -------------------------------------------------
+        // VALIDASI STOK
+        // -------------------------------------------------
+
+        $stock_stmt = mysqli_prepare(
+            $conn,
+            "SELECT stock FROM books WHERE id = ? FOR UPDATE"
+        );
+
+        if (!$stock_stmt) {
+            throw new Exception("Gagal memeriksa stok buku.");
+        }
+
+        $book_ids = array_map('intval', array_keys($cart));
+        sort($book_ids);
+
+        foreach ($book_ids as $book_id) {
+
+            $quantity = (int) $cart[$book_id]['quantity'];
+
+            mysqli_stmt_bind_param(
+                $stock_stmt,
+                "i",
+                $book_id
+            );
+
+            if (!mysqli_stmt_execute($stock_stmt)) {
+                throw new Exception("Gagal membaca stok buku.");
+            }
+
+            $result = mysqli_stmt_get_result($stock_stmt);
+            $book = mysqli_fetch_assoc($result);
+
+            if (!$book) {
+                throw new Exception("Buku tidak ditemukan.");
+            }
+
+            if ((int) $book['stock'] < $quantity) {
+                throw new Exception(
+                    "Stok buku " .
+                    ($cart[$book_id]['title'] ?? 'tersebut') .
+                    " tidak mencukupi."
+                );
+            }
+        }
+
+        mysqli_stmt_close($stock_stmt);
+
+        // -------------------------------------------------
+        // SIMPAN ORDER
+        // -------------------------------------------------
+
+        $order_stmt = mysqli_prepare(
+            $conn,
+            "INSERT INTO orders
+            (
+                user_id,
+                recipient_name,
+                phone,
+                address,
+                payment_method,
+                order_number,
+                total_price,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')"
+        );
+
+        if (!$order_stmt) {
+            throw new Exception("Gagal menyiapkan pesanan.");
+        }
+
+        mysqli_stmt_bind_param(
+            $order_stmt,
+            "isssssd",
+            $user_id,
+            $recipient_name,
+            $phone,
+            $address,
+            $payment_method,
+            $order_number,
+            $total_price
+        );
+
+        if (!mysqli_stmt_execute($order_stmt)) {
+            throw new Exception("Gagal menyimpan pesanan.");
+        }
+
+        $order_id = mysqli_insert_id($conn);
+
+        mysqli_stmt_close($order_stmt);
+
+        // -------------------------------------------------
+        // SIMPAN ORDER ITEMS
+        // -------------------------------------------------
+
+        $item_stmt = mysqli_prepare(
+            $conn,
+            "INSERT INTO order_items
+            (order_id, book_id, quantity, price)
+            VALUES (?, ?, ?, ?)"
+        );
+
+        if (!$item_stmt) {
+            throw new Exception("Gagal menyiapkan item pesanan.");
+        }
+
+        foreach ($cart as $item) {
+
+            $book_id = (int) $item['id'];
+            $quantity = (int) $item['quantity'];
+            $price = (float) $item['price'];
+
+            mysqli_stmt_bind_param(
+                $item_stmt,
+                "iiid",
+                $order_id,
+                $book_id,
+                $quantity,
+                $price
+            );
+
+            if (!mysqli_stmt_execute($item_stmt)) {
+                throw new Exception("Gagal menyimpan item pesanan.");
+            }
+        }
+
+        mysqli_stmt_close($item_stmt);
+
+        // -------------------------------------------------
+        // SIMPAN PAYMENT TRANSACTION AWAL
+        // -------------------------------------------------
+
+        $payment_stmt = mysqli_prepare(
+            $conn,
+            "INSERT INTO payment_transactions
+            (
+                order_id,
+                transaction_code,
+                payment_method,
+                provider,
+                payment_amount,
+                payment_status,
+                expires_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)"
+        );
+
+        if (!$payment_stmt) {
+            throw new Exception(
+                "Gagal menyiapkan transaksi pembayaran."
+            );
+        }
+
+        mysqli_stmt_bind_param(
+            $payment_stmt,
+            "isssdss",
+            $order_id,
+            $transaction_code,
+            $payment_method,
+            $provider,
+            $total_price,
+            $payment_status,
+            $expires_at
+        );
+
+        if (!mysqli_stmt_execute($payment_stmt)) {
+            throw new Exception(
+                "Gagal menyimpan transaksi pembayaran."
+            );
+        }
+
+        mysqli_stmt_close($payment_stmt);
+
+        // -------------------------------------------------
+        // SIMPAN ORDER ID KE SESSION
+        // -------------------------------------------------
+
+        mysqli_commit($conn);
+
+        $_SESSION['pending_order_id'] = $order_id;
+
+        $_SESSION['checkout'] = [
+            'recipient_name' => $recipient_name,
+            'phone' => $phone,
+            'address' => $address,
+            'payment_method' => $payment_method,
+            'total' => $total_price
+        ];
+
+        // Cart belum dihapus sampai proses pembayaran selesai.
+        // Ini diperlukan agar payment-success.php tetap bisa
+        // menggunakan data keranjang pada tahap berikutnya.
+
+        header("Location: payment.php?order_id=" . $order_id);
+        exit;
+
+    } catch (Throwable $e) {
+
+        mysqli_rollback($conn);
+
+        die(
+            "Pesanan gagal dibuat: " .
+            htmlspecialchars($e->getMessage()) .
+            "<br><br><a href='cart.php'>Kembali ke Keranjang</a>"
+        );
+    }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Ambil Data Cart
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// AMBIL DATA CART
+// =========================================================
 
 $cart = $_SESSION['cart'] ?? [];
 
@@ -69,11 +317,9 @@ if (empty($cart)) {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Hitung Total
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// HITUNG TOTAL
+// =========================================================
 
 $total = 0;
 
@@ -81,11 +327,9 @@ foreach ($cart as $item) {
     $total += $item['price'] * $item['quantity'];
 }
 
-/*
-|--------------------------------------------------------------------------
-| Data User
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// DATA USER
+// =========================================================
 
 $fullname = $_SESSION['fullname'] ?? '';
 $email = $_SESSION['email'] ?? '';
@@ -154,13 +398,9 @@ $email = $_SESSION['email'] ?? '';
 
                     <div class="logo-text">
 
-                        <h2>
-                            BookVerse
-                        </h2>
+                        <h2>BookVerse</h2>
 
-                        <p>
-                            Every Book Has a Story
-                        </p>
+                        <p>Every Book Has a Story</p>
 
                     </div>
 
@@ -173,10 +413,10 @@ $email = $_SESSION['email'] ?? '';
                     <ul class="menu">
 
                         <li><a href="index.php">Home</a></li>
-                        <li><a href="#">Books</a></li>
-                        <li><a href="#">Categories</a></li>
-                        <li><a href="#">About</a></li>
-                        <li><a href="#">Contact</a></li>
+                        <li><a href="books.php">Books</a></li>
+                        <li><a href="categories.php">Categories</a></li>
+                        <li><a href="about.php">About</a></li>
+                        <li><a href="contact.php">Contact</a></li>
 
                     </ul>
 
@@ -197,17 +437,13 @@ $email = $_SESSION['email'] ?? '';
 
                     </div>
 
-                    <button
-                        type="button"
-                        class="icon-btn">
+                    <a href="wishlist.php" class="icon-btn">
 
                         <i class="fa-regular fa-heart"></i>
 
-                    </button>
+                    </a>
 
-                    <a
-                        href="cart.php"
-                        class="icon-btn">
+                    <a href="cart.php" class="icon-btn">
 
                         <i class="fa-solid fa-cart-shopping"></i>
 
@@ -430,6 +666,8 @@ $email = $_SESSION['email'] ?? '';
 
                             <div class="payment-methods">
 
+                                <!-- BANK TRANSFER -->
+
                                 <label class="payment-option">
 
                                     <input
@@ -455,6 +693,8 @@ $email = $_SESSION['email'] ?? '';
 
                                 </label>
 
+                                <!-- E-WALLET -->
+
                                 <label class="payment-option">
 
                                     <input
@@ -471,29 +711,6 @@ $email = $_SESSION['email'] ?? '';
                                         <strong>E-Wallet</strong>
 
                                         <span>Pembayaran simulasi</span>
-
-                                    </div>
-
-                                    <i class="fa-solid fa-circle-check payment-check"></i>
-
-                                </label>
-
-                                <label class="payment-option">
-
-                                    <input
-                                        type="radio"
-                                        name="payment_method"
-                                        value="cod">
-
-                                    <div class="payment-icon">
-                                        <i class="fa-solid fa-truck"></i>
-                                    </div>
-
-                                    <div class="payment-info">
-
-                                        <strong>Cash on Delivery</strong>
-
-                                        <span>Bayar saat pesanan diterima</span>
 
                                     </div>
 
@@ -520,8 +737,7 @@ $email = $_SESSION['email'] ?? '';
                                 <?php foreach ($cart as $item): ?>
 
                                     <?php
-                                    $subtotal =
-                                        $item['price'] * $item['quantity'];
+                                    $subtotal = $item['price'] * $item['quantity'];
                                     ?>
 
                                     <div class="checkout-item">
@@ -678,9 +894,9 @@ $email = $_SESSION['email'] ?? '';
                     <ul>
 
                         <li><a href="index.php">Home</a></li>
-                        <li><a href="#">Books</a></li>
-                        <li><a href="#">Categories</a></li>
-                        <li><a href="#">About</a></li>
+                        <li><a href="books.php">Books</a></li>
+                        <li><a href="categories.php">Categories</a></li>
+                        <li><a href="about.php">About</a></li>
 
                     </ul>
 

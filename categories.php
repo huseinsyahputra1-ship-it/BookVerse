@@ -1,6 +1,6 @@
 <?php
 
-session_start();
+require_once __DIR__ . "/config/user-session.php";
 
 include "config/database.php";
 
@@ -87,7 +87,6 @@ $query = mysqli_query(
 
                 </div>
 
-
                 <!-- Menu -->
 
                 <nav>
@@ -107,12 +106,8 @@ $query = mysqli_query(
                         </li>
 
                         <li>
-                            <a
-                                href="categories.php"
-                                class="active">
-
+                            <a href="categories.php" class="active">
                                 Categories
-
                             </a>
                         </li>
 
@@ -132,7 +127,6 @@ $query = mysqli_query(
 
                 </nav>
 
-
                 <!-- Right Menu -->
 
                 <div class="right-menu">
@@ -148,24 +142,13 @@ $query = mysqli_query(
 
                     </div>
 
-
-                    <a
-                        href="wishlist.php"
-                        class="icon-btn">
-
+                    <a href="wishlist.php" class="icon-btn">
                         <i class="fa-regular fa-heart"></i>
-
                     </a>
 
-
-                    <a
-                        href="cart.php"
-                        class="icon-btn">
-
+                    <a href="cart.php" class="icon-btn">
                         <i class="fa-solid fa-cart-shopping"></i>
-
                     </a>
-
 
                     <?php if (isset($_SESSION['user_id'])): ?>
 
@@ -179,19 +162,16 @@ $query = mysqli_query(
                                 <i class="fa-solid fa-user"></i>
 
                                 <span>
-
                                     <?php
                                     echo htmlspecialchars(
                                         $_SESSION['fullname']
                                     );
                                     ?>
-
                                 </span>
 
                                 <i class="fa-solid fa-chevron-down"></i>
 
                             </button>
-
 
                             <div
                                 class="profile-dropdown"
@@ -204,67 +184,50 @@ $query = mysqli_query(
                                     <div>
 
                                         <strong>
-
                                             <?php
                                             echo htmlspecialchars(
                                                 $_SESSION['fullname']
                                             );
                                             ?>
-
                                         </strong>
 
                                         <small>
-
                                             <?php
                                             echo htmlspecialchars(
                                                 $_SESSION['email']
                                             );
                                             ?>
-
                                         </small>
 
                                     </div>
 
                                 </div>
 
-
                                 <hr>
-
 
                                 <a href="profile.php">
 
                                     <i class="fa-solid fa-user"></i>
 
-                                    <span>
-                                        Profile
-                                    </span>
+                                    <span>Profile</span>
 
                                 </a>
-
 
                                 <a href="orders.php">
 
                                     <i class="fa-solid fa-box"></i>
 
-                                    <span>
-                                        Pesanan Saya
-                                    </span>
+                                    <span>Pesanan Saya</span>
 
                                 </a>
 
-
                                 <hr>
 
-
-                                <a
-                                    href="logout.php"
-                                    class="logout-link">
+                                <a href="logout.php" class="logout-link">
 
                                     <i class="fa-solid fa-right-from-bracket"></i>
 
-                                    <span>
-                                        Logout
-                                    </span>
+                                    <span>Logout</span>
 
                                 </a>
 
@@ -274,12 +237,8 @@ $query = mysqli_query(
 
                     <?php else: ?>
 
-                        <a
-                            href="login.php"
-                            class="login-btn">
-
+                        <a href="login.php" class="login-btn">
                             Login
-
                         </a>
 
                     <?php endif; ?>
@@ -291,7 +250,6 @@ $query = mysqli_query(
         </div>
 
     </header>
-
 
     <!-- ================= CATEGORIES PAGE ================= -->
 
@@ -311,7 +269,6 @@ $query = mysqli_query(
                 </p>
 
             </div>
-
 
             <div class="category-wrapper">
 
@@ -384,7 +341,6 @@ $query = mysqli_query(
 
                         ?>
 
-
                         <a
                             href="books.php?category=<?php echo urlencode($category['category']); ?>"
                             class="category-card">
@@ -404,19 +360,15 @@ $query = mysqli_query(
 
                             <?php endif; ?>
 
-
                             <!-- Category Name -->
 
                             <h3>
-
                                 <?php
                                 echo htmlspecialchars(
                                     $category['category']
                                 );
                                 ?>
-
                             </h3>
-
 
                             <!-- Total Books -->
 
@@ -454,7 +406,6 @@ $query = mysqli_query(
 
     </main>
 
-
     <!-- ================= FOOTER ================= -->
 
     <footer class="footer">
@@ -462,7 +413,6 @@ $query = mysqli_query(
         <div class="container">
 
             <div class="footer-content">
-
 
                 <!-- Footer Logo -->
 
@@ -477,14 +427,11 @@ $query = mysqli_query(
                     </h2>
 
                     <p>
-
                         Every Book Has a Story.
                         Discover books that inspire your journey.
-
                     </p>
 
                 </div>
-
 
                 <!-- Footer Links -->
 
@@ -497,33 +444,24 @@ $query = mysqli_query(
                     <ul>
 
                         <li>
-                            <a href="index.php">
-                                Home
-                            </a>
+                            <a href="index.php">Home</a>
                         </li>
 
                         <li>
-                            <a href="books.php">
-                                Books
-                            </a>
+                            <a href="books.php">Books</a>
                         </li>
 
                         <li>
-                            <a href="categories.php">
-                                Categories
-                            </a>
+                            <a href="categories.php">Categories</a>
                         </li>
 
                         <li>
-                            <a href="about.php">
-                                About
-                            </a>
+                            <a href="about.php">About</a>
                         </li>
 
                     </ul>
 
                 </div>
-
 
                 <!-- Footer Contact -->
 
@@ -549,7 +487,6 @@ $query = mysqli_query(
 
             </div>
 
-
             <!-- Footer Bottom -->
 
             <div class="footer-bottom">
@@ -563,7 +500,6 @@ $query = mysqli_query(
         </div>
 
     </footer>
-
 
     <script src="assets/js/script.js"></script>
 

@@ -1,116 +1,241 @@
 
 <?php
 
-session_start();
+require_once __DIR__ . '/config/user-session.php';
+require_once __DIR__ . '/config/database.php';
 
-include "config/database.php";
-
-/*
-|--------------------------------------------------------------------------
-| Pastikan User Sudah Login
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// USER LOGIN
+// =========================================================
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Ambil Cart
-|--------------------------------------------------------------------------
-*/
+$user_id = (int) $_SESSION['user_id'];
 
-$cart = $_SESSION['cart'] ?? [];
+// =========================================================
+// AMBIL ORDER ID
+// =========================================================
 
-if (empty($cart)) {
-    header("Location: cart.php");
+$order_id = (int) (
+    $_GET['order_id']
+    ?? $_SESSION['pending_order_id']
+    ?? 0
+);
+
+if ($order_id <= 0) {
+    header("Location: orders.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Hitung Total Dari Session Cart
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// AMBIL DATA ORDER MILIK USER
+// =========================================================
 
-$total = 0;
+$order_stmt = mysqli_prepare(
+    $conn,
+    "SELECT *
+    FROM orders
+    WHERE id = ? AND user_id = ?
+    LIMIT 1"
+);
 
-foreach ($cart as $item) {
-    $total += $item['price'] * $item['quantity'];
+if (!$order_stmt) {
+    die("Gagal mengambil data pesanan.");
 }
 
-/*
-|--------------------------------------------------------------------------
-| Ambil Data Checkout Dari Session
-|--------------------------------------------------------------------------
-*/
+mysqli_stmt_bind_param(
+    $order_stmt,
+    "ii",
+    $order_id,
+    $user_id
+);
 
-$checkout = $_SESSION['checkout'] ?? [];
+mysqli_stmt_execute($order_stmt);
 
-$recipient_name = trim($checkout['recipient_name'] ?? '');
-$phone = trim($checkout['phone'] ?? '');
-$address = trim($checkout['address'] ?? '');
-$payment_method = $checkout['payment_method'] ?? '';
+$order_result = mysqli_stmt_get_result($order_stmt);
+$order = mysqli_fetch_assoc($order_result);
 
-/*
-|--------------------------------------------------------------------------
-| Validasi Data Checkout
-|--------------------------------------------------------------------------
-*/
+mysqli_stmt_close($order_stmt);
+
+if (!$order) {
+    die("Pesanan tidak ditemukan.");
+}
+
+// =========================================================
+// AMBIL TRANSAKSI PEMBAYARAN
+// =========================================================
+
+$payment_stmt = mysqli_prepare(
+    $conn,
+    "SELECT *
+    FROM payment_transactions
+    WHERE order_id = ?
+    LIMIT 1"
+);
+
+if (!$payment_stmt) {
+    die("Gagal mengambil transaksi pembayaran.");
+}
+
+mysqli_stmt_bind_param(
+    $payment_stmt,
+    "i",
+    $order_id
+);
+
+mysqli_stmt_execute($payment_stmt);
+
+$payment_result = mysqli_stmt_get_result($payment_stmt);
+$payment_transaction = mysqli_fetch_assoc($payment_result);
+
+mysqli_stmt_close($payment_stmt);
+
+if (!$payment_transaction) {
+    die("Transaksi pembayaran tidak ditemukan.");
+}
+
+// =========================================================
+// VALIDASI STATUS PEMBAYARAN
+// =========================================================
+
+if ($payment_transaction['payment_status'] !== 'Pending') {
+    header("Location: payment-success.php");
+    exit;
+}
+
+// =========================================================
+// DATA ORDER
+// =========================================================
+
+$recipient_name = $order['recipient_name'];
+$phone = $order['phone'];
+$address = $order['address'];
+$payment_method = $order['payment_method'];
+
+$total = (float) $order['total_price'];
+
+// =========================================================
+// VALIDASI PAYMENT METHOD
+// =========================================================
 
 $allowed_payment_methods = [
     'bank_transfer',
-    'e_wallet',
-    'cod'
+    'e_wallet'
 ];
 
-if (
-    $recipient_name === '' ||
-    $phone === '' ||
-    $address === '' ||
-    !in_array($payment_method, $allowed_payment_methods, true)
-) {
-    header("Location: checkout.php");
-    exit;
+if (!in_array($payment_method, $allowed_payment_methods, true)) {
+    die("Metode pembayaran tidak valid.");
 }
 
-/*
-|--------------------------------------------------------------------------
-| Simpan Total Ke Session
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// AMBIL ITEM ORDER DARI DATABASE
+// =========================================================
 
-$_SESSION['checkout']['total'] = $total;
+$items_stmt = mysqli_prepare(
+    $conn,
+    "SELECT
+        oi.book_id AS id,
+        oi.quantity,
+        oi.price,
+        b.title,
+        b.author,
+        b.image
+    FROM order_items oi
+    JOIN books b ON b.id = oi.book_id
+    WHERE oi.order_id = ?"
+);
 
-/*
-|--------------------------------------------------------------------------
-| Informasi Payment Method
-|--------------------------------------------------------------------------
-*/
+if (!$items_stmt) {
+    die("Gagal mengambil detail buku.");
+}
+
+mysqli_stmt_bind_param(
+    $items_stmt,
+    "i",
+    $order_id
+);
+
+mysqli_stmt_execute($items_stmt);
+
+$items_result = mysqli_stmt_get_result($items_stmt);
+
+$cart = [];
+
+while ($item = mysqli_fetch_assoc($items_result)) {
+
+    $book_id = (int) $item['id'];
+
+    $cart[$book_id] = [
+        'id' => $book_id,
+        'title' => $item['title'],
+        'author' => $item['author'] ?? '',
+        'image' => $item['image'] ?? '',
+        'price' => (float) $item['price'],
+        'quantity' => (int) $item['quantity']
+    ];
+}
+
+mysqli_stmt_close($items_stmt);
+
+if (empty($cart)) {
+    die("Detail buku dalam pesanan tidak ditemukan.");
+}
+
+// =========================================================
+// SIMPAN SESSION ORDER
+// =========================================================
+
+$_SESSION['pending_order_id'] = $order_id;
+
+$_SESSION['checkout'] = [
+    'recipient_name' => $recipient_name,
+    'phone' => $phone,
+    'address' => $address,
+    'payment_method' => $payment_method,
+    'total' => $total
+];
+
+// =========================================================
+// INFORMASI PAYMENT METHOD
+// =========================================================
 
 $payment_details = [
     'bank_transfer' => [
-        'name' => 'Bank Transfer',
+        'name' => 'Bank Virtual Account',
         'icon' => 'fa-building-columns',
-        'description' => 'Simulated bank transfer payment'
+        'description' => 'Choose your preferred bank'
     ],
     'e_wallet' => [
         'name' => 'E-Wallet',
         'icon' => 'fa-wallet',
-        'description' => 'Simulated digital wallet payment'
-    ],
-    'cod' => [
-        'name' => 'Cash on Delivery',
-        'icon' => 'fa-truck',
-        'description' => 'Pay when your order arrives'
+        'description' => 'Choose your preferred digital wallet'
     ]
 ];
 
 $current_payment = $payment_details[$payment_method];
 
+// =========================================================
+// PROVIDER
+// =========================================================
+
+$providers = [
+    'bank_transfer' => [
+        'BCA' => 'BCA Virtual Account',
+        'Mandiri' => 'Mandiri Virtual Account',
+        'BRI' => 'BRI Virtual Account'
+    ],
+    'e_wallet' => [
+        'GoPay' => 'GoPay',
+        'DANA' => 'DANA',
+        'OVO' => 'OVO'
+    ]
+];
+
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -119,22 +244,15 @@ $current_payment = $payment_details[$payment_method];
 
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Payment - BookVerse</title>
 
     <!-- Google Font -->
 
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
 
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
@@ -146,11 +264,13 @@ $current_payment = $payment_details[$payment_method];
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <!-- CSS -->
+    <!-- Main CSS -->
 
-    <link
-        rel="stylesheet"
-        href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+
+    <!-- Payment CSS -->
+
+    <link rel="stylesheet" href="assets/css/payment.css">
 
 </head>
 
@@ -164,8 +284,6 @@ $current_payment = $payment_details[$payment_method];
 
             <div class="navbar">
 
-                <!-- Logo -->
-
                 <div class="logo">
 
                     <img
@@ -174,59 +292,27 @@ $current_payment = $payment_details[$payment_method];
 
                     <div class="logo-text">
 
-                        <h2>
-                            BookVerse
-                        </h2>
+                        <h2>BookVerse</h2>
 
-                        <p>
-                            Every Book Has a Story
-                        </p>
+                        <p>Every Book Has a Story</p>
 
                     </div>
 
                 </div>
 
-                <!-- Menu -->
-
                 <nav>
 
                     <ul class="menu">
 
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Books
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Categories
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                About
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Contact
-                            </a>
-                        </li>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="books.php">Books</a></li>
+                        <li><a href="categories.php">Categories</a></li>
+                        <li><a href="about.php">About</a></li>
+                        <li><a href="contact.php">Contact</a></li>
 
                     </ul>
 
                 </nav>
-
-                <!-- Right Menu -->
 
                 <div class="right-menu">
 
@@ -241,17 +327,13 @@ $current_payment = $payment_details[$payment_method];
 
                     </div>
 
-                    <button
-                        type="button"
-                        class="icon-btn">
+                    <a href="wishlist.php" class="icon-btn">
 
                         <i class="fa-regular fa-heart"></i>
 
-                    </button>
+                    </a>
 
-                    <a
-                        href="cart.php"
-                        class="icon-btn">
+                    <a href="cart.php" class="icon-btn">
 
                         <i class="fa-solid fa-cart-shopping"></i>
 
@@ -269,11 +351,7 @@ $current_payment = $payment_details[$payment_method];
                                 <i class="fa-solid fa-user"></i>
 
                                 <span>
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $_SESSION['fullname']
-                                    );
-                                    ?>
+                                    <?php echo htmlspecialchars($_SESSION['fullname']); ?>
                                 </span>
 
                                 <i class="fa-solid fa-chevron-down"></i>
@@ -291,19 +369,11 @@ $current_payment = $payment_details[$payment_method];
                                     <div>
 
                                         <strong>
-                                            <?php
-                                            echo htmlspecialchars(
-                                                $_SESSION['fullname']
-                                            );
-                                            ?>
+                                            <?php echo htmlspecialchars($_SESSION['fullname']); ?>
                                         </strong>
 
                                         <small>
-                                            <?php
-                                            echo htmlspecialchars(
-                                                $_SESSION['email']
-                                            );
-                                            ?>
+                                            <?php echo htmlspecialchars($_SESSION['email']); ?>
                                         </small>
 
                                     </div>
@@ -313,37 +383,20 @@ $current_payment = $payment_details[$payment_method];
                                 <hr>
 
                                 <a href="profile.php">
-
                                     <i class="fa-solid fa-user"></i>
-
-                                    <span>
-                                        Profile
-                                    </span>
-
+                                    <span>Profile</span>
                                 </a>
 
                                 <a href="orders.php">
-
                                     <i class="fa-solid fa-box"></i>
-
-                                    <span>
-                                        Pesanan Saya
-                                    </span>
-
+                                    <span>Pesanan Saya</span>
                                 </a>
 
                                 <hr>
 
-                                <a
-                                    href="logout.php"
-                                    class="logout-link">
-
+                                <a href="logout.php" class="logout-link">
                                     <i class="fa-solid fa-right-from-bracket"></i>
-
-                                    <span>
-                                        Logout
-                                    </span>
-
+                                    <span>Logout</span>
                                 </a>
 
                             </div>
@@ -366,8 +419,6 @@ $current_payment = $payment_details[$payment_method];
 
         <div class="container">
 
-            <!-- Payment Header -->
-
             <div class="payment-page-header">
 
                 <div>
@@ -380,9 +431,7 @@ $current_payment = $payment_details[$payment_method];
 
                     </span>
 
-                    <h1>
-                        Complete Your Payment
-                    </h1>
+                    <h1>Complete Your Payment</h1>
 
                     <p>
                         Review your payment details and complete
@@ -391,9 +440,7 @@ $current_payment = $payment_details[$payment_method];
 
                 </div>
 
-                <a
-                    href="checkout.php"
-                    class="payment-back-btn">
+                <a href="checkout.php" class="payment-back-btn">
 
                     <i class="fa-solid fa-arrow-left"></i>
 
@@ -403,7 +450,7 @@ $current_payment = $payment_details[$payment_method];
 
             </div>
 
-            <!-- Simulation Notice -->
+            <!-- SIMULATION NOTICE -->
 
             <div class="payment-simulation-notice">
 
@@ -415,9 +462,7 @@ $current_payment = $payment_details[$payment_method];
 
                 <div>
 
-                    <strong>
-                        Payment Simulation
-                    </strong>
+                    <strong>Payment Simulation</strong>
 
                     <p>
                         This is a simulated payment system created
@@ -429,13 +474,13 @@ $current_payment = $payment_details[$payment_method];
 
             </div>
 
-            <!-- Payment Layout -->
+            <!-- PAYMENT LAYOUT -->
 
             <div class="payment-layout">
 
-                <!-- ================= PAYMENT FORM ================= -->
-
                 <section class="payment-main">
+
+                    <!-- PAYMENT METHOD -->
 
                     <div class="payment-card">
 
@@ -443,15 +488,11 @@ $current_payment = $payment_details[$payment_method];
 
                             <div>
 
-                                <span class="payment-step">
-                                    01
-                                </span>
+                                <span class="payment-step">01</span>
 
                                 <div>
 
-                                    <h2>
-                                        Payment Method
-                                    </h2>
+                                    <h2>Payment Method</h2>
 
                                     <p>
                                         Your selected payment method.
@@ -489,7 +530,7 @@ $current_payment = $payment_details[$payment_method];
 
                     </div>
 
-                    <!-- Payment Details -->
+                    <!-- PAYMENT DETAILS -->
 
                     <div class="payment-card">
 
@@ -497,18 +538,14 @@ $current_payment = $payment_details[$payment_method];
 
                             <div>
 
-                                <span class="payment-step">
-                                    02
-                                </span>
+                                <span class="payment-step">02</span>
 
                                 <div>
 
-                                    <h2>
-                                        Payment Details
-                                    </h2>
+                                    <h2>Payment Details</h2>
 
                                     <p>
-                                        Enter simulated payment information.
+                                        Select your payment provider.
                                     </p>
 
                                 </div>
@@ -517,132 +554,197 @@ $current_payment = $payment_details[$payment_method];
 
                         </div>
 
-                        <?php if ($payment_method === 'bank_transfer'): ?>
+                        <form
+                            id="paymentForm"
+                            action="payment-success.php"
+                            method="POST">
 
-                            <div class="fake-payment-box">
+                            <input
+                                type="hidden"
+                                name="order_id"
+                                value="<?php echo (int) $order_id; ?>">
 
-                                <div class="fake-bank-header">
+                            <!-- PAYMENT PROVIDER -->
 
-                                    <div>
+                            <div class="payment-input-group">
 
-                                        <span>
-                                            BookVerse Virtual Account
-                                        </span>
+                                <label class="provider-section-label">
+                                    Select Payment Provider
+                                </label>
+
+                                <div class="provider-grid">
+
+                                    <?php foreach ($providers[$payment_method] as $value => $label): ?>
+
+                                        <label class="provider-option">
+
+                                            <input
+                                                type="radio"
+                                                name="provider"
+                                                value="<?php echo htmlspecialchars($value); ?>"
+                                                required>
+
+                                            <span class="provider-card">
+
+                                                <span class="provider-logo">
+
+                                                    <?php if ($value === 'BCA'): ?>
+
+                                                        <span class="provider-bca">
+                                                            BCA
+                                                        </span>
+
+                                                    <?php elseif ($value === 'Mandiri'): ?>
+
+                                                        <i class="fa-solid fa-building-columns provider-mandiri"></i>
+
+                                                    <?php elseif ($value === 'BRI'): ?>
+
+                                                        <span class="provider-bri">
+                                                            BRI
+                                                        </span>
+
+                                                    <?php elseif ($value === 'GoPay'): ?>
+
+                                                        <span class="provider-gopay">
+                                                            GoPay
+                                                        </span>
+
+                                                    <?php elseif ($value === 'DANA'): ?>
+
+                                                        <span class="provider-dana">
+                                                            DANA
+                                                        </span>
+
+                                                    <?php elseif ($value === 'OVO'): ?>
+
+                                                        <span class="provider-ovo">
+                                                            OVO
+                                                        </span>
+
+                                                    <?php endif; ?>
+
+                                                </span>
+
+                                                <span class="provider-name">
+                                                    <?php echo htmlspecialchars($label); ?>
+                                                </span>
+
+                                                <span class="provider-check">
+
+                                                    <i class="fa-solid fa-circle-check"></i>
+
+                                                </span>
+
+                                            </span>
+
+                                        </label>
+
+                                    <?php endforeach; ?>
+
+                                </div>
+
+                            </div>
+
+                            <!-- BANK TRANSFER DETAILS -->
+
+                            <?php if ($payment_method === 'bank_transfer'): ?>
+
+                                <div class="fake-payment-box">
+
+                                    <div class="fake-bank-header">
+
+                                        <div>
+
+                                            <span>BookVerse Virtual Account</span>
+
+                                            <strong>BOOKVERSE</strong>
+
+                                        </div>
+
+                                        <i class="fa-solid fa-building-columns"></i>
+
+                                    </div>
+
+                                    <div class="fake-account-number">
+
+                                        <span>Virtual Account Number</span>
 
                                         <strong>
-                                            BOOKVERSE
+                                            Akan dibuat setelah provider dipilih
                                         </strong>
 
                                     </div>
 
-                                    <i class="fa-solid fa-building-columns"></i>
+                                    <div class="fake-payment-row">
+
+                                        <span>Account Name</span>
+
+                                        <strong>BOOKVERSE STORE</strong>
+
+                                    </div>
 
                                 </div>
 
-                                <div class="fake-account-number">
+                                <div class="payment-input-group">
+
+                                    <label for="transfer_name">
+                                        Account Holder Name
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        id="transfer_name"
+                                        placeholder="Enter account holder name"
+                                        value="<?php echo htmlspecialchars($recipient_name); ?>">
+
+                                </div>
+
+                            <!-- E-WALLET DETAILS -->
+
+                            <?php elseif ($payment_method === 'e_wallet'): ?>
+
+                                <div class="fake-payment-box ewallet-box">
+
+                                    <div class="ewallet-icon">
+
+                                        <i class="fa-solid fa-wallet"></i>
+
+                                    </div>
+
+                                    <strong>BookVerse E-Wallet</strong>
 
                                     <span>
-                                        Virtual Account Number
+                                        Simulated digital wallet payment
                                     </span>
 
-                                    <strong>
-                                        8800 2026 0018 4592
-                                    </strong>
+                                    <div class="fake-ewallet-number">
+                                        0812 3456 7890
+                                    </div>
 
                                 </div>
 
-                                <div class="fake-payment-row">
+                                <div class="payment-input-group">
 
-                                    <span>
-                                        Account Name
-                                    </span>
+                                    <label for="wallet_phone">
+                                        E-Wallet Number
+                                    </label>
 
-                                    <strong>
-                                        BOOKVERSE STORE
-                                    </strong>
-
-                                </div>
-
-                            </div>
-
-                            <div class="payment-input-group">
-
-                                <label for="transfer_name">
-                                    Account Holder Name
-                                </label>
-
-                                <input
-                                    type="text"
-                                    id="transfer_name"
-                                    value="<?php echo htmlspecialchars($recipient_name); ?>"
-                                    placeholder="Enter account holder name">
-
-                            </div>
-
-                        <?php elseif ($payment_method === 'e_wallet'): ?>
-
-                            <div class="fake-payment-box ewallet-box">
-
-                                <div class="ewallet-icon">
-
-                                    <i class="fa-solid fa-wallet"></i>
+                                    <input
+                                        type="text"
+                                        id="wallet_phone"
+                                        placeholder="Enter e-wallet number"
+                                        value="<?php echo htmlspecialchars($phone); ?>">
 
                                 </div>
 
-                                <strong>
-                                    BookVerse E-Wallet
-                                </strong>
+                            <?php endif; ?>
 
-                                <span>
-                                    Simulated digital wallet payment
-                                </span>
-
-                                <div class="fake-ewallet-number">
-                                    0812 3456 7890
-                                </div>
-
-                            </div>
-
-                            <div class="payment-input-group">
-
-                                <label for="wallet_phone">
-                                    E-Wallet Number
-                                </label>
-
-                                <input
-                                    type="text"
-                                    id="wallet_phone"
-                                    value="<?php echo htmlspecialchars($phone); ?>"
-                                    placeholder="Enter e-wallet number">
-
-                            </div>
-
-                        <?php else: ?>
-
-                            <div class="fake-payment-box cod-box">
-
-                                <div class="cod-icon">
-
-                                    <i class="fa-solid fa-truck"></i>
-
-                                </div>
-
-                                <strong>
-                                    Cash on Delivery
-                                </strong>
-
-                                <span>
-                                    Your payment will be collected
-                                    when the order arrives.
-                                </span>
-
-                            </div>
-
-                        <?php endif; ?>
+                        </form>
 
                     </div>
 
-                    <!-- Payment Action -->
+                    <!-- PAYMENT ACTION -->
 
                     <div class="payment-action-card">
 
@@ -652,9 +754,7 @@ $current_payment = $payment_details[$payment_method];
 
                             <div>
 
-                                <strong>
-                                    Secure Simulation
-                                </strong>
+                                <strong>Secure Simulation</strong>
 
                                 <span>
                                     Your information is processed
@@ -665,37 +765,22 @@ $current_payment = $payment_details[$payment_method];
 
                         </div>
 
-                        <form
-                            action="payment-success.php"
-                            method="POST">
+                        <button
+                            type="submit"
+                            form="paymentForm"
+                            class="pay-now-btn">
 
-                            <input
-                                type="hidden"
-                                name="payment_method"
-                                value="<?php echo htmlspecialchars($payment_method); ?>">
+                            <i class="fa-solid fa-lock"></i>
 
-                            <button
-                                type="submit"
-                                class="pay-now-btn">
+                            Continue Rp<?php echo number_format($total, 0, ',', '.'); ?>
 
-                                <i class="fa-solid fa-lock"></i>
-
-                                Pay Rp<?php echo number_format(
-                                    $total,
-                                    0,
-                                    ',',
-                                    '.'
-                                ); ?>
-
-                            </button>
-
-                        </form>
+                        </button>
 
                     </div>
 
                 </section>
 
-                <!-- ================= PAYMENT SUMMARY ================= -->
+                <!-- PAYMENT SUMMARY -->
 
                 <aside class="payment-summary">
 
@@ -709,13 +794,9 @@ $current_payment = $payment_details[$payment_method];
 
                             <div>
 
-                                <strong>
-                                    BookVerse
-                                </strong>
+                                <strong>BookVerse</strong>
 
-                                <span>
-                                    Order Summary
-                                </span>
+                                <span>Order Summary</span>
 
                             </div>
 
@@ -728,8 +809,7 @@ $current_payment = $payment_details[$payment_method];
                             <?php foreach ($cart as $item): ?>
 
                                 <?php
-                                $subtotal =
-                                    $item['price'] * $item['quantity'];
+                                $subtotal = $item['price'] * $item['quantity'];
                                 ?>
 
                                 <div class="payment-item">
@@ -745,35 +825,18 @@ $current_payment = $payment_details[$payment_method];
                                     <div class="payment-item-info">
 
                                         <strong>
-                                            <?php
-                                            echo htmlspecialchars(
-                                                $item['title']
-                                            );
-                                            ?>
+                                            <?php echo htmlspecialchars($item['title']); ?>
                                         </strong>
 
                                         <span>
                                             <?php echo (int) $item['quantity']; ?>
-                                            ×
-                                            Rp<?php echo number_format(
-                                                $item['price'],
-                                                0,
-                                                ',',
-                                                '.'
-                                            ); ?>
+                                            × Rp<?php echo number_format($item['price'], 0, ',', '.'); ?>
                                         </span>
 
                                     </div>
 
                                     <strong>
-
-                                        Rp<?php echo number_format(
-                                            $subtotal,
-                                            0,
-                                            ',',
-                                            '.'
-                                        ); ?>
-
+                                        Rp<?php echo number_format($subtotal, 0, ',', '.'); ?>
                                     </strong>
 
                                 </div>
@@ -786,46 +849,28 @@ $current_payment = $payment_details[$payment_method];
 
                         <div class="payment-summary-row">
 
-                            <span>
-                                Subtotal
-                            </span>
+                            <span>Subtotal</span>
 
                             <strong>
-                                Rp<?php echo number_format(
-                                    $total,
-                                    0,
-                                    ',',
-                                    '.'
-                                ); ?>
+                                Rp<?php echo number_format($total, 0, ',', '.'); ?>
                             </strong>
 
                         </div>
 
                         <div class="payment-summary-row">
 
-                            <span>
-                                Delivery
-                            </span>
+                            <span>Delivery</span>
 
-                            <strong>
-                                Free
-                            </strong>
+                            <strong>Free</strong>
 
                         </div>
 
                         <div class="payment-total">
 
-                            <span>
-                                Total Payment
-                            </span>
+                            <span>Total Payment</span>
 
                             <strong>
-                                Rp<?php echo number_format(
-                                    $total,
-                                    0,
-                                    ',',
-                                    '.'
-                                ); ?>
+                                Rp<?php echo number_format($total, 0, ',', '.'); ?>
                             </strong>
 
                         </div>
@@ -840,7 +885,7 @@ $current_payment = $payment_details[$payment_method];
 
     </main>
 
-    <!-- ================= FOOTER ================= -->
+    <!-- FOOTER -->
 
     <footer class="footer">
 
@@ -854,9 +899,7 @@ $current_payment = $payment_details[$payment_method];
                         src="assets/img/hugeicons_book-open-02.png"
                         alt="BookVerse">
 
-                    <h2>
-                        BookVerse
-                    </h2>
+                    <h2>BookVerse</h2>
 
                     <p>
                         Every Book Has a Story.
@@ -867,35 +910,14 @@ $current_payment = $payment_details[$payment_method];
 
                 <div class="footer-links">
 
-                    <h3>
-                        Quick Links
-                    </h3>
+                    <h3>Quick Links</h3>
 
                     <ul>
 
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Books
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                Categories
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="#">
-                                About
-                            </a>
-                        </li>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="books.php">Books</a></li>
+                        <li><a href="categories.php">Categories</a></li>
+                        <li><a href="about.php">About</a></li>
 
                     </ul>
 
@@ -903,21 +925,11 @@ $current_payment = $payment_details[$payment_method];
 
                 <div class="footer-contact">
 
-                    <h3>
-                        Contact
-                    </h3>
+                    <h3>Contact</h3>
 
-                    <p>
-                        Email : info@bookverse.com
-                    </p>
-
-                    <p>
-                        Phone : +62 812 3456 7890
-                    </p>
-
-                    <p>
-                        Jakarta, Indonesia
-                    </p>
+                    <p>Email : info@bookverse.com</p>
+                    <p>Phone : +62 812 3456 7890</p>
+                    <p>Jakarta, Indonesia</p>
 
                 </div>
 

@@ -1,6 +1,5 @@
-
 <?php
-session_start();
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 
@@ -19,6 +18,25 @@ if ($_SESSION['role'] !== 'admin') {
         window.location='../index.php';
     </script>";
     exit();
+}
+
+// =========================================================
+// GET CATEGORIES
+// =========================================================
+
+$categoriesQuery = mysqli_query(
+    $conn,
+    "SELECT name FROM categories ORDER BY name ASC"
+);
+
+if (!$categoriesQuery) {
+    die("Gagal mengambil data kategori: " . mysqli_error($conn));
+}
+
+$categories = [];
+
+while ($categoryRow = mysqli_fetch_assoc($categoriesQuery)) {
+    $categories[] = $categoryRow['name'];
 }
 
 // =========================================================
@@ -51,11 +69,31 @@ if (isset($_POST['add_book'])) {
         exit();
     }
 
+    // CATEGORY VALIDATION
+
+    if (!in_array($category, $categories, true)) {
+        echo "<script>
+            alert('Kategori tidak valid! Silakan pilih kategori yang tersedia.');
+            window.history.back();
+        </script>";
+        exit();
+    }
+
     // STOCK VALIDATION
 
     if ($stock < 0) {
         echo "<script>
             alert('Jumlah stok tidak boleh kurang dari 0!');
+            window.history.back();
+        </script>";
+        exit();
+    }
+
+    // PRICE VALIDATION
+
+    if (!is_numeric($price) || (float) $price < 0) {
+        echo "<script>
+            alert('Harga buku tidak valid!');
             window.history.back();
         </script>";
         exit();
@@ -129,7 +167,7 @@ if (isset($_POST['add_book'])) {
 
     $databaseImagePath = "assets/img/books/" . $newImageName;
 
-       // INSERT BOOK + STOCK HISTORY
+    // INSERT BOOK + STOCK HISTORY
 
     mysqli_begin_transaction($conn);
 
@@ -173,11 +211,13 @@ if (isset($_POST['add_book'])) {
         }
 
         // Ambil ID buku yang baru ditambahkan
+
         $book_id = mysqli_insert_id($conn);
 
         mysqli_stmt_close($query);
 
         // Catat stok awal jika lebih dari 0
+
         if ($stock > 0) {
 
             $activity_type = "Stock In";
@@ -225,6 +265,7 @@ if (isset($_POST['add_book'])) {
         }
 
         // Simpan seluruh perubahan
+
         mysqli_commit($conn);
 
         echo "<script>
@@ -238,6 +279,7 @@ if (isset($_POST['add_book'])) {
         mysqli_rollback($conn);
 
         // Hapus gambar jika transaksi gagal
+
         if (file_exists($imagePath)) {
             unlink($imagePath);
         }
@@ -250,6 +292,8 @@ if (isset($_POST['add_book'])) {
         </script>";
         exit();
     }
+
+}
 
 ?>
 
@@ -328,7 +372,7 @@ if (isset($_POST['add_book'])) {
             </span>
 
             <a
-                href="../logout.php"
+                href="logout.php"
                 class="admin-logout">
 
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -368,6 +412,17 @@ if (isset($_POST['add_book'])) {
 
                 </a>
 
+                <!-- MANAGE CATEGORIES -->
+
+                <a
+                    href="categories.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Manage Categories</span>
+
+                </a>
+
                 <a
                     href="orders.php"
                     class="admin-nav-link">
@@ -378,11 +433,51 @@ if (isset($_POST['add_book'])) {
                 </a>
 
                 <a
+                    href="payment-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-credit-card"></i>
+                    <span>Payment Transactions</span>
+
+                </a>
+                
+                <a
+                    href="return-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-undo"></i>
+                    <span>Return Management</span>
+
+                </a>
+
+                <a
                     href="users.php"
                     class="admin-nav-link">
 
                     <i class="fa-solid fa-users"></i>
                     <span>Manage Users</span>
+
+                </a>
+
+                <!-- MESSAGES -->
+
+                <a
+                    href="messages.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-envelope"></i>
+                    <span>Messages</span>
+
+                </a>
+
+                <!-- STOCK HISTORY -->
+
+                <a
+                    href="stock-history.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Stock History</span>
 
                 </a>
 
@@ -556,12 +651,28 @@ if (isset($_POST['add_book'])) {
                             Category
                         </label>
 
-                        <input
-                            type="text"
+                        <select
                             id="category"
                             name="category"
-                            placeholder="Example: Fiction, Education, Romance"
-                            required>
+                            required
+                            style="width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit;">
+
+                            <option value="">
+                                Select Book Category
+                            </option>
+
+                            <?php foreach ($categories as $categoryName): ?>
+
+                                <option
+                                    value="<?php echo htmlspecialchars($categoryName); ?>">
+
+                                    <?php echo htmlspecialchars($categoryName); ?>
+
+                                </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
 
                     </div>
 

@@ -1,16 +1,28 @@
 <?php
-session_start();
 
 include "config/database.php";
+
+// ==========================================
+// BOOKVERSE LOGIN
+// ==========================================
 
 if (isset($_POST['login'])) {
 
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
-    $query = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+    // Cari user berdasarkan email
+    $stmt = mysqli_prepare(
+        $conn,
+        "SELECT * FROM users WHERE email = ?"
+    );
 
-    if (mysqli_num_rows($query) == 0) {
+    mysqli_stmt_bind_param($stmt, "s", $email);
+    mysqli_stmt_execute($stmt);
+
+    $result = mysqli_stmt_get_result($stmt);
+
+    if (mysqli_num_rows($result) == 0) {
 
         echo "<script>
             alert('Email tidak ditemukan!');
@@ -20,8 +32,9 @@ if (isset($_POST['login'])) {
         exit();
     }
 
-    $user = mysqli_fetch_assoc($query);
+    $user = mysqli_fetch_assoc($result);
 
+    // Verifikasi password
     if (!password_verify($password, $user['password'])) {
 
         echo "<script>
@@ -32,34 +45,60 @@ if (isset($_POST['login'])) {
         exit();
     }
 
-// ================= LOGIN BERHASIL =================
+    // ======================================
+    // PILIH SESSION BERDASARKAN ROLE
+    // ======================================
 
-$_SESSION['user_id'] = $user['id'];
-$_SESSION['fullname'] = $user['fullname'];
-$_SESSION['email'] = $user['email'];
-$_SESSION['role'] = $user['role'];
+    if ($user['role'] === 'admin') {
 
-if ($user['role'] === 'admin') {
+        // Gunakan session khusus Admin
+        require_once __DIR__ . '/admin/admin-session.php';
 
-    echo "<script>
-        alert('Login berhasil! Selamat datang di Admin Dashboard!');
-        window.location='admin/index.php';
-    </script>";
+    } else {
 
-} else {
+        // Gunakan session khusus User
+        require_once __DIR__ . '/config/user-session.php';
 
-    echo "<script>
-        alert('Login berhasil! Selamat datang di BookVerse!');
-        window.location='index.php';
-    </script>";
+    }
 
-}
+    // Regenerasi session ID untuk keamanan
+    session_regenerate_id(true);
 
-exit();
+    // ======================================
+    // SIMPAN DATA LOGIN
+    // ======================================
+
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['fullname'] = $user['fullname'];
+    $_SESSION['email'] = $user['email'];
+    $_SESSION['role'] = $user['role'];
+
+    // ======================================
+    // REDIRECT BERDASARKAN ROLE
+    // ======================================
+
+    if ($user['role'] === 'admin') {
+
+        echo "<script>
+            alert('Login berhasil! Selamat datang di Admin Dashboard!');
+            window.location='admin/index.php';
+        </script>";
+
+    } else {
+
+        echo "<script>
+            alert('Login berhasil! Selamat datang di BookVerse!');
+            window.location='index.php';
+        </script>";
+
+    }
+
+    exit();
 
 }
 
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">

@@ -1,23 +1,46 @@
+
 <?php
 
-session_start();
+require_once __DIR__ . '/config/user-session.php';
+require_once __DIR__ . '/config/database.php';
 
-include "config/database.php";
+// =========================================================
+// USER ACCESS
+// =========================================================
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-$userId = $_SESSION['user_id'];
+$userId = (int) $_SESSION['user_id'];
 
-$query = mysqli_query(
+// =========================================================
+// AMBIL DATA ORDERS DAN PAYMENT USER
+// =========================================================
+
+$stmt = mysqli_prepare(
     $conn,
-    "SELECT *
-     FROM orders
-     WHERE user_id = '$userId'
-     ORDER BY created_at DESC"
+    "SELECT
+        o.*,
+        pt.payment_status,
+        pt.provider,
+        pt.payment_proof
+    FROM orders o
+    LEFT JOIN payment_transactions pt
+        ON pt.order_id = o.id
+    WHERE o.user_id = ?
+    ORDER BY o.created_at DESC"
 );
+
+if (!$stmt) {
+    die("Gagal mengambil data pesanan.");
+}
+
+mysqli_stmt_bind_param($stmt, "i", $userId);
+mysqli_stmt_execute($stmt);
+
+$query = mysqli_stmt_get_result($stmt);
 
 ?>
 
@@ -61,6 +84,10 @@ $query = mysqli_query(
         rel="stylesheet"
         href="assets/css/style.css">
 
+    <link
+        rel="stylesheet"
+        href="assets/css/orders.css">
+
 </head>
 
 <body>
@@ -98,6 +125,7 @@ $query = mysqli_query(
                 <a
                     href="index.php"
                     class="profile-back">
+
                     <i class="fa-solid fa-arrow-left"></i>
 
                     Back to Home
@@ -140,6 +168,10 @@ $query = mysqli_query(
 
                     <?php while ($order = mysqli_fetch_assoc($query)): ?>
 
+                        <?php
+                        $paymentStatus = $order['payment_status'] ?? 'Pending';
+                        ?>
+
                         <article class="order-card">
 
                             <!-- ORDER HEADER -->
@@ -161,8 +193,7 @@ $query = mysqli_query(
                                 </div>
 
                                 <span
-                                    class="order-status
-                                    status-<?php echo strtolower(
+                                    class="order-status status-<?php echo strtolower(
                                         $order['status']
                                     ); ?>">
 
@@ -195,13 +226,30 @@ $query = mysqli_query(
                                         Order placed on
                                         <?php echo date(
                                             'd M Y, H:i',
-                                            strtotime(
-                                                $order['created_at']
-                                            )
+                                            strtotime($order['created_at'])
                                         ); ?>
                                     </span>
 
                                 </div>
+
+                            </div>
+
+
+                            <!-- PAYMENT STATUS -->
+
+                            <div class="order-payment-info">
+
+                                <span>
+                                    Payment Status
+                                </span>
+
+                                <strong class="payment-status payment-<?php echo strtolower(
+                                    str_replace(' ', '-', $paymentStatus)
+                                ); ?>">
+
+                                    <?php echo htmlspecialchars($paymentStatus); ?>
+
+                                </strong>
 
                             </div>
 
@@ -217,8 +265,7 @@ $query = mysqli_query(
                                     </span>
 
                                     <strong>
-                                        Rp
-                                        <?php echo number_format(
+                                        Rp<?php echo number_format(
                                             $order['total_price'],
                                             0,
                                             ',',
@@ -228,15 +275,38 @@ $query = mysqli_query(
 
                                 </div>
 
-                                <a
-                                    href="order-detail.php?id=<?php echo $order['id']; ?>"
-                                    class="order-detail-btn">
 
-                                    View Details
+                                <div class="order-actions">
 
-                                    <i class="fa-solid fa-arrow-right"></i>
+                                    <?php if (
+                                        $paymentStatus === 'Pending' &&
+                                        $order['status'] === 'Pending'
+                                    ): ?>
 
-                                </a>
+                                        <a
+                                            href="payment.php?order_id=<?php echo (int) $order['id']; ?>"
+                                            class="continue-payment-btn">
+
+                                            <i class="fa-solid fa-credit-card"></i>
+
+                                            Lanjutkan Pembayaran
+
+                                        </a>
+
+                                    <?php endif; ?>
+
+
+                                    <a
+                                        href="order-detail.php?id=<?php echo (int) $order['id']; ?>"
+                                        class="order-detail-btn">
+
+                                        View Details
+
+                                        <i class="fa-solid fa-arrow-right"></i>
+
+                                    </a>
+
+                                </div>
 
                             </div>
 
@@ -306,3 +376,9 @@ $query = mysqli_query(
 </body>
 
 </html>
+
+<?php
+
+mysqli_stmt_close($stmt);
+
+?>

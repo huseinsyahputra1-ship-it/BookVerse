@@ -1,6 +1,6 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 
@@ -262,7 +262,7 @@ if (isset($_POST['update_role'])) {
 
 
             <a
-                href="../logout.php"
+                href="logout.php"
                 class="admin-logout">
 
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -312,6 +312,15 @@ if (isset($_POST['update_role'])) {
 
                 </a>
 
+                <a
+                    href="categories.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-tags"></i>
+
+                    <span>Manage Categories</span>
+
+                </a>    
 
                 <a
                     href="orders.php"
@@ -323,6 +332,26 @@ if (isset($_POST['update_role'])) {
 
                 </a>
 
+                <a
+                    href="payment-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid  fa-money-bill-transfer"></i>
+
+                    <span>Payment Transactions</span>
+
+                </a>
+
+                <a
+                    href="return-management.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-rotate-left"></i>
+
+                    <span>Return Management</span>
+
+                </a>
+
 
                 <a
                     href="users.php"
@@ -331,6 +360,28 @@ if (isset($_POST['update_role'])) {
                     <i class="fa-solid fa-users"></i>
 
                     <span>Manage Users</span>
+
+                </a>
+
+
+                <a
+                    href="messages.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-envelope"></i>
+
+                    <span>Messages</span>
+
+                </a>
+
+
+                <a
+                    href="stock-history.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid fa-boxes-stacked"></i>
+
+                    <span>Stock History</span>
 
                 </a>
 

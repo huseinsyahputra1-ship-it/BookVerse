@@ -1,7 +1,6 @@
-
 <?php
 
-session_start();
+require_once __DIR__ . '/config/user-session.php';
 
 require_once "config/database.php";
 

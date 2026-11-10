@@ -1,7 +1,6 @@
-
 <?php
 
-session_start();
+require_once __DIR__ . "/config/user-session.php";
 
 include "config/database.php";
 
@@ -39,7 +38,7 @@ $categoryQuery = mysqli_query(
 
     <link
         rel="preconnect"
-        href="https://fonts.googleapis.com">
+        href="https://fonts.gstatic.com">
 
     <link
         rel="preconnect"
@@ -390,7 +389,7 @@ $categoryQuery = mysqli_query(
                     <div class="hero-button">
 
                         <a
-                            href="#"
+                            href="books.php"
                             class="btn-purple">
 
                             Explore Books
@@ -398,7 +397,7 @@ $categoryQuery = mysqli_query(
                         </a>
 
                         <a
-                            href="#"
+                            href="#categories"
                             class="btn-yellow">
 
                             Browse Categories
@@ -907,7 +906,7 @@ $categoryQuery = mysqli_query(
 
                         <li>
 
-                            <a href="#">
+                            <a href="about.php">
 
                                 About
 

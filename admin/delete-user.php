@@ -1,6 +1,6 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 

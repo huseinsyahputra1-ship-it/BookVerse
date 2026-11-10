@@ -1,11 +1,10 @@
-
 <?php
 
-session_start();
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 
-// ================= ADMIN ACCESS =================
+/* ================= ADMIN ACCESS ================= */
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
@@ -21,7 +20,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 }
 
 
-// ================= GET MESSAGE ID =================
+/* ================= GET MESSAGE ID ================= */
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
@@ -31,7 +30,7 @@ if (!$id || $id < 1) {
 }
 
 
-// ================= GET MESSAGE =================
+/* ================= GET MESSAGE ================= */
 
 $stmt = mysqli_prepare(
     $conn,
@@ -54,7 +53,7 @@ if (!$message) {
 }
 
 
-// ================= MARK AS READ =================
+/* ================= MARK AS READ ================= */
 
 if ($message['status'] === 'Unread') {
 
@@ -73,7 +72,7 @@ if ($message['status'] === 'Unread') {
 }
 
 
-// ================= EMAIL REPLY =================
+/* ================= EMAIL REPLY ================= */
 
 $replySubject = "Re: " . $message['subject'];
 
@@ -141,7 +140,7 @@ $mailLink = "mailto:" . $message['email']
                 <?php echo htmlspecialchars($_SESSION['fullname']); ?>
             </span>
 
-            <a href="../logout.php" class="admin-logout">
+            <a href="logout.php" class="admin-logout">
                 <i class="fa-solid fa-right-from-bracket"></i>
                 Logout
             </a>
@@ -169,9 +168,24 @@ $mailLink = "mailto:" . $message['email']
                     <span>Manage Books</span>
                 </a>
 
+                <a href="categories.php" class="admin-nav-link">
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Manage Categories</span>
+                </a>
+
                 <a href="orders.php" class="admin-nav-link">
                     <i class="fa-solid fa-box"></i>
                     <span>Manage Orders</span>
+                </a>
+
+                <a href="payment-transactions.php" class="admin-nav-link">
+                    <i class="fa-solid fa-credit-card"></i>
+                    <span>Payment Transactions</span>
+                </a>
+
+                <a href="return-management.php" class="admin-nav-link">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Return Management</span>
                 </a>
 
                 <a href="users.php" class="admin-nav-link">
@@ -182,6 +196,13 @@ $mailLink = "mailto:" . $message['email']
                 <a href="messages.php" class="admin-nav-link active">
                     <i class="fa-solid fa-envelope"></i>
                     <span>Messages</span>
+                </a>
+
+                <!-- STOCK HISTORY -->
+
+                <a href="stock-history.php" class="admin-nav-link">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Stock History</span>
                 </a>
 
             </nav>

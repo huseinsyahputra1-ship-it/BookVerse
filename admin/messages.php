@@ -1,7 +1,6 @@
-
 <?php
 
-session_start();
+require_once __DIR__ . '/admin-session.php';
 
 include "../config/database.php";
 
@@ -148,7 +147,7 @@ if ($filter === 'Unread' || $filter === 'Read') {
                 <?php echo htmlspecialchars($_SESSION['fullname']); ?>
             </span>
 
-            <a href="../logout.php" class="admin-logout">
+            <a href="logout.php" class="admin-logout">
                 <i class="fa-solid fa-right-from-bracket"></i>
                 Logout
             </a>
@@ -176,9 +175,28 @@ if ($filter === 'Unread' || $filter === 'Read') {
                     <span>Manage Books</span>
                 </a>
 
+                <a href="categories.php" class="admin-nav-link">
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Manage Categories</span>
+                </a>
+
                 <a href="orders.php" class="admin-nav-link">
                     <i class="fa-solid fa-box"></i>
                     <span>Manage Orders</span>
+                </a>
+
+                <a
+                    href="payment-transactions.php"
+                    class="admin-nav-link">
+
+                    <i class="fa-solid  fa-money-bill-transfer"></i>
+                    <span>Payment Transactions</span>
+
+                </a>
+
+                <a href="return-management.php" class="admin-nav-link">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Return Management</span>
                 </a>
 
                 <a href="users.php" class="admin-nav-link">
@@ -189,6 +207,13 @@ if ($filter === 'Unread' || $filter === 'Read') {
                 <a href="messages.php" class="admin-nav-link active">
                     <i class="fa-solid fa-envelope"></i>
                     <span>Messages</span>
+                </a>
+
+                <!-- STOCK HISTORY -->
+
+                <a href="stock-history.php" class="admin-nav-link">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Stock History</span>
                 </a>
 
             </nav>
